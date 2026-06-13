@@ -51,13 +51,22 @@ export default function MediaGallery() {
             className="flex-none w-32 md:w-40 snap-start cursor-pointer group relative"
           >
             <div className="w-full aspect-[2/3] rounded-xl overflow-hidden bg-black/50 border border-white/10 relative shadow-lg">
-              {/* If we had real poster URLs, we'd use an <img /> tag here. For the mock, we generate gradients */}
-              <div 
-                className="absolute inset-0 opacity-80 group-hover:opacity-100 transition-opacity"
-                style={{ 
-                  background: `linear-gradient(to bottom, transparent, rgba(0,0,0,0.8)), linear-gradient(${Math.random() * 360}deg, #222, #444)` 
-                }}
-              />
+              {/* Render Image or Fallback */}
+              {item.ImageTags?.Primary ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img 
+                  src={jellyfin.getImageUrl(item.Id, item.ImageTags.Primary)} 
+                  alt={item.Name} 
+                  className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
+                />
+              ) : (
+                <div 
+                  className="absolute inset-0 opacity-80 group-hover:opacity-100 transition-opacity"
+                  style={{ 
+                    background: `linear-gradient(to bottom, transparent, rgba(0,0,0,0.8)), linear-gradient(${Math.random() * 360}deg, #222, #444)` 
+                  }}
+                />
+              )}
               <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-black/40 backdrop-blur-sm">
                 {/* Play Icon */}
                 <svg width="40" height="40" viewBox="0 0 24 24" fill={activeColors.accent} stroke="none">

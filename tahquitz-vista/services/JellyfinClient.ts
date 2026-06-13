@@ -23,6 +23,7 @@ export class JellyfinClient {
   // Generate the URL for a primary image (poster)
   public getImageUrl(itemId: string, imageTag?: string): string {
     if (!imageTag) return ''; // Fallback placeholder logic handles empty strings
+    if (imageTag.startsWith('/')) return imageTag; // It's a local mock asset
     return `${this.baseUrl}/Items/${itemId}/Images/Primary?tag=${imageTag}&maxWidth=400`;
   }
 
@@ -57,7 +58,7 @@ export class JellyfinClient {
   private getMockData(type: 'Movie' | 'Series'): JellyfinItem[] {
     if (type === 'Series') {
       return [
-        { Id: 'mock-s1', Name: 'Yellowstone', Type: 'Series', ProductionYear: 2018 },
+        { Id: 'mock-s1', Name: 'Yellowstone', Type: 'Series', ProductionYear: 2018, ImageTags: { Primary: '/assets/poster_drama.png' } },
         { Id: 'mock-s2', Name: 'The Handmaid\'s Tale', Type: 'Series', ProductionYear: 2017 },
         { Id: 'mock-s3', Name: 'The Sopranos', Type: 'Series', ProductionYear: 1999 },
         { Id: 'mock-s4', Name: 'Game of Thrones', Type: 'Series', ProductionYear: 2011 },
@@ -65,10 +66,10 @@ export class JellyfinClient {
     }
     
     return [
-      { Id: 'mock-m1', Name: 'Black Widow', Type: 'Movie', ProductionYear: 2021 },
-      { Id: 'mock-m2', Name: 'Cruella', Type: 'Movie', ProductionYear: 2021 },
-      { Id: 'mock-m3', Name: 'F9: The Fast Saga', Type: 'Movie', ProductionYear: 2021 },
-      { Id: 'mock-m4', Name: 'The Hitman\'s Wife\'s Bodyguard', Type: 'Movie', ProductionYear: 2021 },
+      { Id: 'mock-m1', Name: 'Velocity Rising', Type: 'Movie', ProductionYear: 2024, ImageTags: { Primary: '/assets/poster_action.png' } },
+      { Id: 'mock-m2', Name: 'Dune', Type: 'Movie', ProductionYear: 2021, ImageTags: { Primary: '/assets/poster_scifi.png' } },
+      { Id: 'mock-m3', Name: 'Paw-ty Time', Type: 'Movie', ProductionYear: 2023, ImageTags: { Primary: '/assets/poster_comedy.png' } },
+      { Id: 'mock-m4', Name: 'Shadow Protocol', Type: 'Movie', ProductionYear: 2024, ImageTags: { Primary: '/assets/poster_thriller.png' } },
       { Id: 'mock-m5', Name: 'Fatima', Type: 'Movie', ProductionYear: 2020 },
     ];
   }

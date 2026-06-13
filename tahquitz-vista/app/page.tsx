@@ -13,6 +13,9 @@ import EnvironmentSelector, { ImmersionMode } from "@/components/layout/Environm
 import LightingControl from "@/components/lighting/LightingControl";
 import MediaGallery from "@/components/media/MediaGallery";
 
+import WindowShadeControl from "@/components/controls/WindowShadeControl";
+import LightingPanel from "@/components/lighting/LightingPanel";
+
 type ViewState = 'lopa' | 'dashboard';
 
 export default function Home() {
@@ -22,7 +25,9 @@ export default function Home() {
   const [activeZoneId, setActiveZoneId] = useState<string | null>(null);
   const [activeZoneName, setActiveZoneName] = useState<string | null>(null);
   const [immersionMode, setImmersionMode] = useState<ImmersionMode>('Default');
+  const [isLightingPanelOpen, setIsLightingPanelOpen] = useState(false);
 
+  // ... (keep handleZoneSelect, etc.)
   const handleZoneSelect = (id: string, name: string) => {
     setActiveZoneId(id);
     setActiveZoneName(name);
@@ -67,6 +72,13 @@ export default function Home() {
   return (
     <main className={`min-h-screen relative overflow-hidden flex flex-col transition-colors duration-1000 ${getBackgroundClass()}`}>
       
+      {/* Lighting Slide-Over Panel */}
+      <LightingPanel 
+        isOpen={isLightingPanelOpen} 
+        onClose={() => setIsLightingPanelOpen(false)} 
+        zoneName={activeZoneName || 'Cabin'} 
+      />
+
       {/* Dynamic Background Glow */}
       {immersionMode === 'Default' && (
         <div 
@@ -100,7 +112,7 @@ export default function Home() {
         </div>
         
         {/* Mock Status Bar */}
-        <div className="flex items-center gap-6 text-xs text-gray-500 font-mono">
+        <div className="flex items-center gap-6 text-xs text-gray-500 font-mono hidden md:flex">
           <span>ALT: 41,000 FT</span>
           <span>OAT: -54°C</span>
           <span style={{ color: activeColors.accent }}>14:32 UTC</span>
@@ -144,7 +156,7 @@ export default function Home() {
                   </section>
 
                   {/* Reaktor-style "My Journey" Timeline */}
-                  <section className="bg-white/5 border border-white/5 rounded-3xl px-8 py-4 backdrop-blur-sm">
+                  <section className="bg-white/5 border border-white/5 rounded-3xl px-8 py-4 backdrop-blur-sm hidden md:block">
                     <JourneyTimeline />
                   </section>
 
@@ -162,17 +174,29 @@ export default function Home() {
                     <EnvironmentSelector currentMode={immersionMode} onModeChange={setImmersionMode} />
                   </section>
 
-                  <section className="bg-white/5 border border-white/5 rounded-3xl p-8 backdrop-blur-sm">
-                    <LightingControl label="Ceiling Wash" />
+                  {/* Lighting Master Widget (Opens Panel) */}
+                  <section 
+                    onClick={() => setIsLightingPanelOpen(true)}
+                    className="bg-black/40 border border-white/5 hover:bg-white/5 transition-colors cursor-pointer rounded-3xl p-8 backdrop-blur-md flex flex-col items-center justify-center min-h-[160px] group relative overflow-hidden"
+                  >
+                    <div 
+                      className="absolute inset-0 opacity-0 group-hover:opacity-10 transition-opacity"
+                      style={{ background: `linear-gradient(45deg, transparent, ${activeColors.accent})` }}
+                    />
+                    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke={activeColors.accent} strokeWidth="1.5" className="mb-4 group-hover:scale-110 transition-transform">
+                      <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41" />
+                    </svg>
+                    <h3 className="text-sm font-medium tracking-widest text-white uppercase">Lighting Master</h3>
+                    <p className="text-xs text-gray-500 tracking-widest mt-1">15 Active Zones</p>
                   </section>
 
                   <section className="bg-white/5 border border-white/5 rounded-3xl p-8 backdrop-blur-sm flex flex-col items-center">
-                    <h3 className="w-full text-left text-sm text-gray-400 uppercase tracking-widest mb-6">Environment</h3>
+                    <h3 className="w-full text-left text-sm text-gray-400 uppercase tracking-widest mb-6">Climate</h3>
                     <SkeuomorphicDial initialValue={72} label="TEMP °F" />
-                    <div className="flex justify-between w-full mt-8 px-2">
-                      <TactileSwitch label="SHADES" />
-                      <TactileSwitch label="AIRFLOW" />
-                    </div>
+                  </section>
+
+                  <section className="w-full">
+                     <WindowShadeControl />
                   </section>
 
                 </div>
