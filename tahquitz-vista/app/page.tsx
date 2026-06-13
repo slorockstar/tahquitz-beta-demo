@@ -1,108 +1,164 @@
 "use client";
 
 import { useState } from "react";
-import SkeuomorphicDial from "@/components/controls/SkeuomorphicDial";
+import { motion, AnimatePresence } from "framer-motion";
 import { useTheme } from "./providers";
+import AircraftLOPA from "@/components/layout/AircraftLOPA";
+import SkeuomorphicDial from "@/components/controls/SkeuomorphicDial";
+import TactileSwitch from "@/components/controls/TactileSwitch";
+import TahquitzAssistant from "@/components/ai/TahquitzAssistant";
+
+type ViewState = 'lopa' | 'dashboard';
 
 export default function Home() {
-  const { themeConfig, updateTheme, activeColors } = useTheme();
+  const { activeColors } = useTheme();
   
-  // Simulated state for a UI payload response
-  const [lastPayload, setLastPayload] = useState<number | null>(null);
+  const [activeView, setActiveView] = useState<ViewState>('lopa');
+  const [activeZoneId, setActiveZoneId] = useState<string | null>(null);
+  const [activeZoneName, setActiveZoneName] = useState<string | null>(null);
 
-  const handleDialRelease = (val: number) => {
-    // This is where we'd dispatch to Tahquitz Core via WebSockets
-    console.log(`[NETWORK EVENT] Dispatching payload to Tahquitz Core -> Dimmer: ${val}%`);
-    setLastPayload(val);
+  const handleZoneSelect = (id: string, name: string) => {
+    setActiveZoneId(id);
+    setActiveZoneName(name);
+    setActiveView('dashboard');
   };
 
+  const handleBackToLOPA = () => {
+    setActiveView('lopa');
+    setActiveZoneId(null);
+    setActiveZoneName(null);
+  };
+
+  // Animation variants for iOS-style sliding transitions
+  const variants = {
+    initial: (direction: number) => ({
+      x: direction > 0 ? '100%' : '-100%',
+      opacity: 0
+    }),
+    animate: {
+      x: 0,
+      opacity: 1,
+      transition: { type: "spring" as const, stiffness: 300, damping: 30 }
+    },
+    exit: (direction: number) => ({
+      x: direction < 0 ? '100%' : '-100%',
+      opacity: 0,
+      transition: { type: "spring" as const, stiffness: 300, damping: 30 }
+    })
+  };
+
+  // Direction: 1 for moving forward (Dashboard), -1 for moving back (LOPA)
+  const direction = activeView === 'dashboard' ? 1 : -1;
+
   return (
-    <main className="flex min-h-screen items-center justify-center p-8 gap-16 flex-wrap">
-      {/* Interactive Dial Section */}
-      <section className="flex flex-col items-center">
-        <div className="mb-12 text-center max-w-md">
-          <h1 className="text-3xl font-light tracking-widest uppercase mb-4">Master Suite</h1>
-          <p className="text-gray-500 text-sm">
-            Drag the dial to adjust lighting. Notice the instant local response (Optimistic UI). 
-            The system only sends the network payload when you release the dial to prevent ARINC bus flooding.
-          </p>
+    <main className="min-h-screen relative overflow-hidden bg-black flex flex-col">
+      {/* Dynamic Background Glow */}
+      <div 
+        className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[800px] rounded-full blur-[150px] opacity-20 pointer-events-none transition-colors duration-1000"
+        style={{ backgroundColor: activeColors.accent }}
+      />
+
+      {/* Persistent Top Navigation Bar */}
+      <header className="w-full h-20 flex items-center justify-between px-8 z-20 border-b border-white/5 bg-black/20 backdrop-blur-md">
+        <div className="flex items-center gap-4">
+          <AnimatePresence>
+            {activeView === 'dashboard' && (
+              <motion.button
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -20 }}
+                onClick={handleBackToLOPA}
+                className="text-gray-400 hover:text-white transition-colors"
+              >
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <line x1="19" y1="12" x2="5" y2="12"></line>
+                  <polyline points="12 19 5 12 12 5"></polyline>
+                </svg>
+              </motion.button>
+            )}
+          </AnimatePresence>
+          <h1 className="text-xl font-light tracking-widest uppercase">
+            {activeView === 'lopa' ? 'TAHQUITZ VVIP' : activeZoneName}
+          </h1>
         </div>
+        
+        {/* Mock Status Bar */}
+        <div className="flex items-center gap-6 text-xs text-gray-500 font-mono">
+          <span>ALT: 41,000 FT</span>
+          <span>OAT: -54°C</span>
+          <span style={{ color: activeColors.accent }}>14:32 UTC</span>
+        </div>
+      </header>
 
-        <SkeuomorphicDial 
-          initialValue={75} 
-          label="OVERHEAD DIMMER" 
-          onChangeComplete={handleDialRelease} 
-        />
-
-        {lastPayload !== null && (
-          <div className="mt-8 px-4 py-2 rounded-md bg-black/40 border border-white/10 font-mono text-xs text-green-400">
-            [PAYLOAD DISPATCHED] Level: {lastPayload}%
-          </div>
-        )}
-      </section>
-
-      {/* Hot-Skinning Theme Controls (Mocking the Screenshot) */}
-      <aside className="w-96 rounded-xl border border-white/10 p-6" style={{ background: 'var(--bg-color)', boxShadow: '0 10px 40px rgba(0,0,0,0.5)' }}>
-        <h2 className="text-xl font-medium mb-1">Appearance</h2>
-        <p className="text-sm text-gray-500 mb-8">Configure the agent's visual theme and display preferences.</p>
-
-        <div className="space-y-6">
-          <div className="flex justify-between items-center bg-white/5 p-4 rounded-lg border border-white/5">
-            <div>
-              <div className="font-medium">Appearance</div>
-              <div className="text-xs text-gray-500">Select light, dark, or inherit system settings.</div>
-            </div>
-            <select 
-              className="bg-black/50 border border-white/20 rounded px-2 py-1 text-sm outline-none"
-              value={themeConfig.mode}
-              onChange={(e) => updateTheme({ mode: e.target.value as any })}
+      {/* Main Sliding Content Area */}
+      <div className="flex-1 relative w-full overflow-hidden">
+        <AnimatePresence custom={direction} initial={false}>
+          {activeView === 'lopa' && (
+            <motion.div
+              key="lopa"
+              custom={direction}
+              variants={variants}
+              initial="initial"
+              animate="animate"
+              exit="exit"
+              className="absolute inset-0 w-full h-full overflow-y-auto"
             >
-              <option value="dark">Dark</option>
-              <option value="light">Light</option>
-              <option value="system">System</option>
-            </select>
-          </div>
+              <AircraftLOPA onSelectZone={handleZoneSelect} />
+            </motion.div>
+          )}
 
-          <div>
-            <h3 className="font-medium mb-3">{themeConfig.mode === 'light' ? 'Light Theme' : 'Dark Theme'}</h3>
-            <div className="space-y-2">
-              {/* Background Color Picker */}
-              <div className="flex justify-between items-center bg-white/5 p-3 rounded-lg border border-white/5">
-                <span className="text-sm">Background</span>
-                <div className="flex items-center gap-2 bg-black/30 px-2 py-1 rounded">
-                  <input 
-                    type="color" 
-                    value={activeColors.background}
-                    onChange={(e) => {
-                      const newColors = { ...activeColors, background: e.target.value };
-                      updateTheme(themeConfig.mode === 'light' ? { lightTheme: newColors } : { darkTheme: newColors });
-                    }}
-                    className="w-5 h-5 cursor-pointer rounded border-0"
-                  />
-                  <span className="font-mono text-xs">{activeColors.background.toUpperCase()}</span>
-                </div>
-              </div>
+          {activeView === 'dashboard' && (
+            <motion.div
+              key="dashboard"
+              custom={direction}
+              variants={variants}
+              initial="initial"
+              animate="animate"
+              exit="exit"
+              className="absolute inset-0 w-full h-full overflow-y-auto pb-32" // padding bottom for AI bar
+            >
+              {/* Responsive Grid Dashboard */}
+              <div className="max-w-5xl mx-auto p-8 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                
+                {/* Lighting Card */}
+                <section className="bg-white/5 border border-white/5 rounded-3xl p-8 backdrop-blur-sm flex flex-col items-center">
+                  <h3 className="w-full text-left text-sm text-gray-400 uppercase tracking-widest mb-8">Lighting</h3>
+                  <SkeuomorphicDial initialValue={80} label="WASH LIGHTS" />
+                  <div className="flex justify-between w-full mt-8 px-4">
+                    <TactileSwitch label="READING" />
+                    <TactileSwitch label="GALLEY" />
+                  </div>
+                </section>
 
-              {/* Accent Color Picker */}
-              <div className="flex justify-between items-center bg-white/5 p-3 rounded-lg border border-white/5">
-                <span className="text-sm">Accent</span>
-                <div className="flex items-center gap-2 bg-black/30 px-2 py-1 rounded">
-                  <input 
-                    type="color" 
-                    value={activeColors.accent}
-                    onChange={(e) => {
-                      const newColors = { ...activeColors, accent: e.target.value };
-                      updateTheme(themeConfig.mode === 'light' ? { lightTheme: newColors } : { darkTheme: newColors });
-                    }}
-                    className="w-5 h-5 cursor-pointer rounded border-0"
-                  />
-                  <span className="font-mono text-xs">{activeColors.accent.toUpperCase()}</span>
-                </div>
+                {/* Climate & Shades Card */}
+                <section className="bg-white/5 border border-white/5 rounded-3xl p-8 backdrop-blur-sm flex flex-col items-center">
+                  <h3 className="w-full text-left text-sm text-gray-400 uppercase tracking-widest mb-8">Environment</h3>
+                  <SkeuomorphicDial initialValue={72} label="TEMP °F" />
+                  <div className="flex justify-between w-full mt-8 px-4">
+                    <TactileSwitch label="SHADES" />
+                    <TactileSwitch label="AIRFLOW" />
+                  </div>
+                </section>
+
+                {/* Media & Comm Card */}
+                <section className="bg-white/5 border border-white/5 rounded-3xl p-8 backdrop-blur-sm flex flex-col items-center">
+                  <h3 className="w-full text-left text-sm text-gray-400 uppercase tracking-widest mb-8">Media & Comm</h3>
+                  <SkeuomorphicDial initialValue={50} label="VOLUME" />
+                  <div className="flex justify-between w-full mt-8 px-4">
+                    <TactileSwitch label="FWD MON" />
+                    <TactileSwitch label="CREW CALL" initialState={false} />
+                  </div>
+                </section>
+
               </div>
-            </div>
-          </div>
-        </div>
-      </aside>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
+
+      {/* Persistent Futuristic AI Assistant */}
+      <TahquitzAssistant />
+
     </main>
   );
 }
