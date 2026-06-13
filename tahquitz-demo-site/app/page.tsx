@@ -73,7 +73,9 @@ export default function LandingPage() {
                   <div className="text-sm text-gray-500">Renders instantly as a PWA on passenger personal devices.</div>
                 </div>
               </div>
-              <button className="btn-luxury w-full md:w-auto">Launch Vista Demo</button>
+              <a href="https://tahquitz-beta-demo-git-main-kovach-design-s-projects.vercel.app" target="_blank" rel="noopener noreferrer">
+                <button className="btn-luxury w-full md:w-auto">Launch Vista Demo</button>
+              </a>
             </div>
           ) : (
             <div className="glass-panel rounded-3xl p-12 text-left transform transition-all hover:scale-[1.01] border-t-4 border-t-blue-500">
