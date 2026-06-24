@@ -1,0 +1,8 @@
+serviceName: XXX-AVODCatalog
+version: 1.0.0
+network:
+  interface: 0.0.0.0
+  protocol: TCP
+  portRange:
+    start: 19350
+    end: 19420

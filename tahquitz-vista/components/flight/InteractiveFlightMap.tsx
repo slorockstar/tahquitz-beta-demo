@@ -33,14 +33,14 @@ export default function InteractiveFlightMap() {
       diffuse: 1.2,
       mapSamples: 16000,
       mapBrightness: 6,
-      baseColor: [0.1, 0.1, 0.1],
+      baseColor: [1, 1, 1], // In dark mode, baseColor is inverted. White becomes black, and allows the dots to shine.
       markerColor: glowColor,
       glowColor: glowColor,
       markers: [
-        // Hamburg EDHI
-        { location: [53.5353, 9.8322], size: 0.05 },
+        // Dubai DXB
+        { location: [25.2532, 55.3657], size: 0.08 },
         // LAX
-        { location: [33.9416, -118.4085], size: 0.08 }
+        { location: [33.9416, -118.4085], size: 0.05 }
       ],
       onRender: (state: Record<string, any>) => {
         // Automatically rotate slowly
@@ -64,8 +64,8 @@ export default function InteractiveFlightMap() {
       </div>
 
       <div className="absolute top-6 right-6 z-10 text-right">
-        <h2 className="text-3xl font-light text-white mb-1 drop-shadow-lg">11:17</h2>
-        <p className="text-sm tracking-widest text-gray-300 uppercase">To Los Angeles</p>
+        <h2 className="text-3xl font-light text-white mb-1 drop-shadow-lg">15:45</h2>
+        <p className="text-sm tracking-widest text-gray-300 uppercase">To Dubai</p>
       </div>
 
       {/* 3D WebGL Globe */}

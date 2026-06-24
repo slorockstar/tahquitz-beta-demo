@@ -15,6 +15,7 @@ import MediaGallery from "@/components/media/MediaGallery";
 
 import WindowShadeControl from "@/components/controls/WindowShadeControl";
 import LightingPanel from "@/components/lighting/LightingPanel";
+import ModularDashboard from "@/components/dashboard/ModularDashboard";
 
 type ViewState = 'lopa' | 'dashboard';
 
@@ -146,61 +147,12 @@ export default function Home() {
               exit="exit"
               className="absolute inset-0 w-full h-full overflow-y-auto pb-32"
             >
-              <div className="max-w-[1400px] mx-auto p-8 grid grid-cols-1 md:grid-cols-12 gap-8">
-                
-                {/* Left Column: 3D Map & Timeline (Spans 8 cols) */}
-                <div className="col-span-1 md:col-span-8 flex flex-col gap-8">
-                  {/* Betria-style Interactive 3D Globe */}
-                  <section className="bg-white/5 border border-white/5 rounded-3xl overflow-hidden backdrop-blur-sm relative h-[500px]">
-                    <InteractiveFlightMap />
-                  </section>
-
-                  {/* Reaktor-style "My Journey" Timeline */}
-                  <section className="bg-white/5 border border-white/5 rounded-3xl px-8 py-4 backdrop-blur-sm hidden md:block">
-                    <JourneyTimeline />
-                  </section>
-
-                  {/* Jellyfin AVOD Gallery */}
-                  <section className="bg-white/5 border border-white/5 rounded-3xl p-8 backdrop-blur-sm">
-                    <MediaGallery />
-                  </section>
-                </div>
-
-                {/* Right Column: Cabin Controls (Spans 4 cols) */}
-                <div className="col-span-1 md:col-span-4 flex flex-col gap-8">
-                  
-                  {/* Origin Concept: Environment Selector */}
-                  <section className="bg-white/5 border border-white/5 rounded-3xl p-8 backdrop-blur-sm">
-                    <EnvironmentSelector currentMode={immersionMode} onModeChange={setImmersionMode} />
-                  </section>
-
-                  {/* Lighting Master Widget (Opens Panel) */}
-                  <section 
-                    onClick={() => setIsLightingPanelOpen(true)}
-                    className="bg-black/40 border border-white/5 hover:bg-white/5 transition-colors cursor-pointer rounded-3xl p-8 backdrop-blur-md flex flex-col items-center justify-center min-h-[160px] group relative overflow-hidden"
-                  >
-                    <div 
-                      className="absolute inset-0 opacity-0 group-hover:opacity-10 transition-opacity"
-                      style={{ background: `linear-gradient(45deg, transparent, ${activeColors.accent})` }}
-                    />
-                    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke={activeColors.accent} strokeWidth="1.5" className="mb-4 group-hover:scale-110 transition-transform">
-                      <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41" />
-                    </svg>
-                    <h3 className="text-sm font-medium tracking-widest text-white uppercase">Lighting Master</h3>
-                    <p className="text-xs text-gray-500 tracking-widest mt-1">15 Active Zones</p>
-                  </section>
-
-                  <section className="bg-white/5 border border-white/5 rounded-3xl p-8 backdrop-blur-sm flex flex-col items-center">
-                    <h3 className="w-full text-left text-sm text-gray-400 uppercase tracking-widest mb-6">Climate</h3>
-                    <SkeuomorphicDial initialValue={72} label="TEMP °F" />
-                  </section>
-
-                  <section className="w-full">
-                     <WindowShadeControl />
-                  </section>
-
-                </div>
-
+              <div className="max-w-[1400px] mx-auto p-4 md:p-8 pt-4">
+                <ModularDashboard 
+                  immersionMode={immersionMode}
+                  setImmersionMode={setImmersionMode}
+                  openLightingPanel={() => setIsLightingPanelOpen(true)}
+                />
               </div>
             </motion.div>
           )}

@@ -1,0 +1,8 @@
+serviceName: XXX-AVODCtrl
+version: 1.0.0
+network:
+  interface: 0.0.0.0
+  protocol: TCP
+  portRange:
+    start: 19300
+    end: 19400

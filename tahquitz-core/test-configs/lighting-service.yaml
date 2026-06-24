@@ -1,0 +1,6 @@
+serviceName: LightingService
+version: 1.0.0
+network:
+  interface: 0.0.0.0
+  protocol: TCP
+  port: 19375
