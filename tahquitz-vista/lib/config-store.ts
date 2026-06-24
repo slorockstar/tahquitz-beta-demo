@@ -38,7 +38,7 @@ export const DEFAULT_AIRCRAFT_CONFIG: AircraftConfig = {
       hasAuxPorts: true,
     },
     {
-      id: 'aerosuite',
+      id: 'private_suite',
       hasMonitors: true,
       monitorDetails: '32" LCD',
       hasSpeakers: true,
@@ -75,6 +75,18 @@ export const DEFAULT_AIRCRAFT_CONFIG: AircraftConfig = {
       hasMovingMap: true,
       hasPassengerCall: true,
       hasAuxPorts: true,
+    },
+    {
+      id: 'guest_lavatory',
+      hasMonitors: false,
+      hasSpeakers: true,
+      hasHeadphones: false,
+      hasLighting: true,
+      hasClimate: true,
+      hasShades: true,
+      hasMovingMap: false,
+      hasPassengerCall: true,
+      hasAuxPorts: false,
     },
     {
       id: 'majlis',
