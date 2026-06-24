@@ -31,10 +31,10 @@ export default function InteractiveFlightMap() {
       theta: 0.3,
       dark: 1, // 1 is dark mode
       diffuse: 1.2,
-      mapSamples: 16000,
-      mapBrightness: 6,
-      baseColor: [1, 1, 1], // In dark mode, baseColor is inverted. White becomes black, and allows the dots to shine.
-      markerColor: glowColor,
+      mapSamples: 20000,
+      mapBrightness: 4,
+      baseColor: [0.3, 0.3, 0.3], // Dark mode gray base allows white dots to contrast properly
+      markerColor: [1, 1, 1], // Pure white markers for cities
       glowColor: glowColor,
       markers: [
         // Dubai DXB

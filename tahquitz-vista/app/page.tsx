@@ -111,13 +111,6 @@ export default function Home() {
             {activeView === 'lopa' ? 'TAHQUITZ VVIP' : activeZoneName}
           </h1>
         </div>
-        
-        {/* Mock Status Bar */}
-        <div className="flex items-center gap-6 text-xs text-gray-500 font-mono hidden md:flex">
-          <span>ALT: 41,000 FT</span>
-          <span>OAT: -54°C</span>
-          <span style={{ color: activeColors.accent }}>14:32 UTC</span>
-        </div>
       </header>
 
       {/* Main Sliding Content Area */}

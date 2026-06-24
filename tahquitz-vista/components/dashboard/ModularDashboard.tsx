@@ -13,6 +13,7 @@ import ServiceWidget from './ServiceWidget';
 import MediaGallery from '../media/MediaGallery';
 import EnvironmentSelector, { ImmersionMode } from '../layout/EnvironmentSelector';
 import WindowShadeControl from '../controls/WindowShadeControl';
+import FlightDataWidget from './FlightDataWidget';
 import { useTheme } from '@/app/providers';
 
 // Responsive grid parameters
@@ -21,14 +22,16 @@ const ROW_HEIGHT = 120;
 
 // Default layout prior to customization
 const defaultLayout: any[] = [
-  { i: 'map', x: 0, y: 0, w: 8, h: 4 },
+  { i: 'data', x: 0, y: 0, w: 8, h: 2 },
+  { i: 'map', x: 0, y: 2, w: 8, h: 4 },
   { i: 'climate', x: 8, y: 0, w: 4, h: 3 },
-  { i: 'timeline', x: 0, y: 4, w: 8, h: 1 },
-  { i: 'media', x: 0, y: 5, w: 8, h: 3 },
-  { i: 'lighting', x: 8, y: 3, w: 4, h: 2 },
-  { i: 'seat', x: 8, y: 5, w: 4, h: 2 },
-  { i: 'service', x: 8, y: 7, w: 4, h: 2 },
-  { i: 'shades', x: 0, y: 8, w: 4, h: 2 },
+  { i: 'environment', x: 8, y: 3, w: 4, h: 3 },
+  { i: 'timeline', x: 0, y: 6, w: 8, h: 1 },
+  { i: 'media', x: 0, y: 7, w: 8, h: 3 },
+  { i: 'lighting', x: 8, y: 6, w: 4, h: 2 },
+  { i: 'seat', x: 8, y: 8, w: 4, h: 2 },
+  { i: 'service', x: 8, y: 10, w: 4, h: 2 },
+  { i: 'shades', x: 0, y: 10, w: 4, h: 3 },
 ];
 
 interface ModularDashboardProps {
@@ -97,6 +100,14 @@ export default function ModularDashboard({ immersionMode, setImmersionMode, open
         isBounded={true}
       >
         
+        {/* FLIGHT DATA WIDGET */}
+        <div key="data" className="relative group">
+          <div className="drag-handle absolute top-2 right-2 w-8 h-8 z-50 cursor-move flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+            <span className="text-white/50 hover:text-white">✥</span>
+          </div>
+          <FlightDataWidget />
+        </div>
+
         {/* FLIGHT MAP WIDGET */}
         <div key="map" className="relative group bg-white/5 backdrop-blur-md rounded-3xl overflow-hidden border border-white/10 hover:border-white/30 transition-colors">
           <div className="drag-handle absolute top-0 left-0 w-full h-8 z-50 cursor-move flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-black/50">
@@ -111,6 +122,16 @@ export default function ModularDashboard({ immersionMode, setImmersionMode, open
             <span className="text-white/50 hover:text-white">✥</span>
           </div>
           <ClimateWidget />
+        </div>
+
+        {/* ENVIRONMENT SELECTOR */}
+        <div key="environment" className="relative group">
+          <div className="drag-handle absolute top-2 right-2 w-8 h-8 z-50 cursor-move flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+            <span className="text-white/50 hover:text-white">✥</span>
+          </div>
+          <div className="w-full h-full bg-white/5 border border-white/5 rounded-3xl p-6 backdrop-blur-md overflow-hidden">
+             <EnvironmentSelector currentMode={immersionMode} onModeChange={setImmersionMode} />
+          </div>
         </div>
 
         {/* TIMELINE WIDGET */}
@@ -140,16 +161,25 @@ export default function ModularDashboard({ immersionMode, setImmersionMode, open
           </div>
           <section 
             onClick={openLightingPanel}
-            className="w-full h-full bg-black/40 border border-white/5 hover:bg-white/5 transition-colors cursor-pointer rounded-3xl p-6 backdrop-blur-md flex flex-col items-center justify-center relative overflow-hidden"
+            className="w-full h-full bg-black/40 border border-white/5 hover:bg-white/5 transition-colors cursor-pointer rounded-3xl p-6 backdrop-blur-md flex flex-col relative overflow-hidden"
           >
             <div 
               className="absolute inset-0 opacity-0 group-hover:opacity-10 transition-opacity"
               style={{ background: `linear-gradient(45deg, transparent, ${activeColors.accent})` }}
             />
-            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke={activeColors.accent} strokeWidth="1.5" className="mb-4 group-hover:scale-110 transition-transform">
-              <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41" />
-            </svg>
-            <h3 className="text-sm font-medium tracking-widest text-white uppercase text-center">Lighting</h3>
+            
+            <h3 className="text-xs tracking-widest text-gray-500 uppercase font-medium mb-4">Lighting Master</h3>
+            
+            <div className="flex items-center gap-4 flex-1">
+              <div 
+                className="w-12 h-12 rounded-full shadow-[0_0_20px_rgba(255,255,255,0.2)] border-2 border-white/20"
+                style={{ backgroundColor: activeColors.accent || '#FFF', boxShadow: `0 0 20px ${activeColors.accent || '#FFF'}` }}
+              />
+              <div className="flex flex-col">
+                <span className="text-2xl font-light text-white">15<span className="text-sm text-gray-400 ml-1">ZONES</span></span>
+                <span className="text-[9px] tracking-widest text-gray-500 uppercase mt-1">Tap to configure</span>
+              </div>
+            </div>
           </section>
         </div>
 
@@ -170,11 +200,11 @@ export default function ModularDashboard({ immersionMode, setImmersionMode, open
         </div>
 
         {/* WINDOW SHADES */}
-        <div key="shades" className="relative group">
+        <div key="shades" className="relative group overflow-hidden bg-white/5 backdrop-blur-md rounded-3xl border border-white/10">
            <div className="drag-handle absolute top-2 right-2 w-8 h-8 z-50 cursor-move flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
             <span className="text-white/50 hover:text-white">✥</span>
           </div>
-          <div className="w-full h-full bg-white/5 backdrop-blur-md rounded-3xl p-6 border border-white/10 flex flex-col items-center justify-center">
+          <div className="w-full h-full overflow-hidden flex flex-col">
              <WindowShadeControl />
           </div>
         </div>
