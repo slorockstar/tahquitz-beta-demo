@@ -107,9 +107,19 @@ export default function Home() {
               </motion.button>
             )}
           </AnimatePresence>
-          <h1 className="text-xl font-light tracking-widest uppercase">
-            {activeView === 'lopa' ? 'TAHQUITZ VVIP' : activeZoneName}
-          </h1>
+          <div className="flex items-center gap-4">
+            <h1 className="text-xl font-light tracking-widest uppercase">
+              {activeView === 'lopa' ? 'TAHQUITZ VVIP' : activeZoneName}
+            </h1>
+            {activeView === 'lopa' && (
+              <button 
+                onClick={() => window.location.href = '/portal'}
+                className="text-xs text-gray-500 hover:text-white uppercase tracking-widest px-3 py-1 rounded-full border border-white/5 hover:border-white/20 transition-all bg-white/5"
+              >
+                Configuration Portal
+              </button>
+            )}
+          </div>
         </div>
       </header>
 
@@ -142,6 +152,7 @@ export default function Home() {
             >
               <div className="max-w-[1400px] mx-auto p-4 md:p-8 pt-4">
                 <ModularDashboard 
+                  zoneId={activeZoneId || 'lounge'}
                   immersionMode={immersionMode}
                   setImmersionMode={setImmersionMode}
                   openLightingPanel={() => setIsLightingPanelOpen(true)}
