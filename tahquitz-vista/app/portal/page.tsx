@@ -75,7 +75,6 @@ export default function ConfigurationPortal() {
               <p className="text-gray-400 tracking-widest text-sm mt-2 uppercase">Fleet Lifecycle & Configuration Manager</p>
             </div>
             <div className="flex gap-6 items-center">
-              <span className="text-xs text-gray-500 uppercase tracking-widest">Lufthansa Technik</span>
               <button 
                 onClick={() => router.push('/')}
                 className="text-xs uppercase tracking-widest text-gray-400 hover:text-white transition-colors"
@@ -95,7 +94,7 @@ export default function ConfigurationPortal() {
                 <form onSubmit={handleLogin} className="space-y-6">
                   <div>
                     <label className="block text-[10px] tracking-widest uppercase text-gray-500 mb-2">Integrator / Client Email</label>
-                    <input type="email" required value={email} onChange={e=>setEmail(e.target.value)} className="w-full bg-black/50 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-white/50 transition-colors" placeholder="integrator@lht.com" />
+                    <input type="email" required value={email} onChange={e=>setEmail(e.target.value)} className="w-full bg-black/50 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-white/50 transition-colors" placeholder="integrator@vip.com" />
                   </div>
                   <div>
                     <label className="block text-[10px] tracking-widest uppercase text-gray-500 mb-2">Secure Password</label>
@@ -135,18 +134,6 @@ export default function ConfigurationPortal() {
                     <span>Deployed: Today</span>
                     <button onClick={() => setView('lopa_setup')} className="text-white group-hover:underline">Edit Config →</button>
                   </div>
-                </div>
-
-                {/* Mock Archived Project */}
-                <div className="bg-white/5 border border-white/10 rounded-2xl p-6 opacity-50">
-                  <div className="flex justify-between items-start mb-6">
-                    <div>
-                      <h3 className="text-lg font-medium">N999VIP</h3>
-                      <p className="text-xs text-gray-400 uppercase tracking-widest mt-1">Airbus ACJ319</p>
-                    </div>
-                    <span className="bg-gray-500/10 text-gray-400 px-2 py-1 rounded text-[10px] uppercase tracking-widest border border-gray-500/20">Delivered</span>
-                  </div>
-                  <div className="text-sm text-gray-400 mb-6">Project Legacy</div>
                 </div>
               </div>
             </motion.div>
@@ -206,8 +193,9 @@ export default function ConfigurationPortal() {
                   <div className="bg-green-500/10 border border-green-500/20 rounded-2xl p-6">
                     <h3 className="text-green-400 text-sm font-bold uppercase tracking-widest mb-4">✓ In Scope (Automated Mapping Successful)</h3>
                     <ul className="space-y-3 text-sm text-gray-300">
-                      <li className="flex items-start gap-3"><span className="text-green-400">●</span> 24" & 65" 4K Video Monitors mapping to Collins Venue routing logic.</li>
-                      <li className="flex items-start gap-3"><span className="text-green-400">●</span> ALTO Aviation High-Fidelity Audio arrays in Galley and Lounge.</li>
+                      <li className="flex items-start gap-3"><span className="text-green-400">●</span> 32", 42", and 65" 4K Video Monitors mapped successfully.</li>
+                      <li className="flex items-start gap-3"><span className="text-green-400">●</span> High-Fidelity Audio arrays and Bluetooth Headphone integration in VIP zones.</li>
+                      <li className="flex items-start gap-3"><span className="text-green-400">●</span> Moving Map application mapping successfully.</li>
                       <li className="flex items-start gap-3"><span className="text-green-400">●</span> 15-Zone RGBW LED Lighting mapping via RS-485 arrays.</li>
                     </ul>
                   </div>
@@ -243,18 +231,27 @@ export default function ConfigurationPortal() {
                   <div key={zone.id} className="bg-white/5 border border-white/10 rounded-2xl p-6">
                     <h3 className="text-lg font-medium uppercase tracking-widest mb-4">{zone.id.replace('_', ' ')}</h3>
                     
-                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
-                      {/* Checkboxes mapping directly to config-store logic */}
-                      {['hasMonitors', 'hasSpeakers', 'hasClimate', 'hasShades', 'hasLighting'].map(flag => {
-                        const isChecked = zone[flag as keyof ZoneHardwareConfig] as boolean;
-                        const label = flag.replace('has', '');
+                    <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
+                      {/* Expanded Checkboxes mapping to new config-store logic */}
+                      {[
+                        { flag: 'hasMonitors', label: 'Monitors' },
+                        { flag: 'hasSpeakers', label: 'Speakers' },
+                        { flag: 'hasHeadphones', label: 'Headphones' },
+                        { flag: 'hasLighting', label: 'Lighting' },
+                        { flag: 'hasClimate', label: 'Climate' },
+                        { flag: 'hasShades', label: 'Shades' },
+                        { flag: 'hasMovingMap', label: 'Moving Map' },
+                        { flag: 'hasPassengerCall', label: 'Pax Call' },
+                        { flag: 'hasAuxPorts', label: 'Aux/HDMI' }
+                      ].map(item => {
+                        const isChecked = zone[item.flag as keyof ZoneHardwareConfig] as boolean;
                         return (
-                          <label key={flag} className="flex items-center gap-3 cursor-pointer group">
-                            <div className={`w-5 h-5 rounded border flex items-center justify-center transition-colors ${isChecked ? 'bg-white border-white' : 'border-white/30 group-hover:border-white/50'}`}>
+                          <label key={item.flag} className="flex items-center gap-3 cursor-pointer group">
+                            <div className={`w-5 h-5 rounded border flex flex-shrink-0 items-center justify-center transition-colors ${isChecked ? 'bg-white border-white' : 'border-white/30 group-hover:border-white/50'}`}>
                               {isChecked && <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="black" strokeWidth="3"><polyline points="20 6 9 17 4 12"></polyline></svg>}
                             </div>
-                            <input type="checkbox" className="hidden" checked={isChecked} onChange={e => handleUpdateZone(zone.id, { [flag]: e.target.checked })} />
-                            <span className="text-xs uppercase tracking-widest text-gray-300 group-hover:text-white">{label}</span>
+                            <input type="checkbox" className="hidden" checked={isChecked} onChange={e => handleUpdateZone(zone.id, { [item.flag]: e.target.checked })} />
+                            <span className="text-[10px] uppercase tracking-widest text-gray-300 group-hover:text-white truncate">{item.label}</span>
                           </label>
                         )
                       })}
@@ -282,7 +279,7 @@ export default function ConfigurationPortal() {
 
               <div className="bg-black border border-white/20 p-6 rounded-2xl overflow-x-auto relative group">
                  <button className="absolute top-4 right-4 bg-white/10 px-4 py-2 rounded-full text-xs uppercase tracking-widest opacity-0 group-hover:opacity-100 transition-opacity">Copy JSON</button>
-                 <pre className="text-sm font-mono text-green-400">
+                 <pre className="text-[10px] font-mono text-green-400">
                    {JSON.stringify(config, null, 2)}
                  </pre>
               </div>
