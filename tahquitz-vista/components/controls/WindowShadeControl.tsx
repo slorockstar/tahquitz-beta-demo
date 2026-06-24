@@ -33,10 +33,10 @@ export default function WindowShadeControl() {
 
   return (
     <div className="flex flex-col items-center w-full h-full max-w-[300px] mx-auto bg-black/40 rounded-3xl p-6 border border-white/5 backdrop-blur-md shadow-2xl overflow-hidden">
-      <h3 className="text-xs font-medium tracking-widest text-gray-400 uppercase mb-4 w-full text-center">Window Shades</h3>
+      <h3 className="text-xs font-medium tracking-widest text-gray-400 uppercase mb-3 w-full text-center shrink-0">Window Shades</h3>
 
       {/* Mode Toggle */}
-      <div className="flex w-full bg-black/60 rounded-full p-1 mb-6 relative border border-white/5 shadow-inner shrink-0">
+      <div className="flex w-full bg-black/60 rounded-full p-1 mb-4 relative border border-white/5 shadow-inner shrink-0">
         <motion.div 
           className="absolute top-1 bottom-1 w-[calc(50%-4px)] bg-white/10 rounded-full shadow-sm"
           animate={{ x: mode === 'Sheer' ? 0 : '100%' }}
@@ -57,7 +57,7 @@ export default function WindowShadeControl() {
       </div>
 
       {/* Vertical Slider Wrapper */}
-      <div className="relative flex-1 w-16 bg-black/80 rounded-full flex justify-center items-center overflow-hidden border border-white/10 shadow-inner mb-6 group min-h-[120px]">
+      <div className="relative flex-1 w-16 bg-black/80 rounded-full flex justify-center items-center overflow-hidden border border-white/10 shadow-inner mb-4 group min-h-[100px]">
         
         {/* Dynamic Fill Background */}
         <div 
@@ -95,22 +95,22 @@ export default function WindowShadeControl() {
       </div>
 
       {/* Percentage Display */}
-      <div className="text-2xl font-light text-white mb-4 shrink-0">
+      <div className="text-xl font-light text-white mb-3 shrink-0">
         {currentLevel}<span className="text-xs text-gray-500">%</span>
-        <div className="text-[9px] text-gray-500 tracking-widest uppercase mt-1 text-center">Closed</div>
+        <div className="text-[9px] text-gray-500 tracking-widest uppercase mt-0.5 text-center">Closed</div>
       </div>
 
       {/* Master Controls */}
       <div className="flex w-full gap-2 mt-auto shrink-0">
         <button 
           onClick={handleAllOpen}
-          className="flex-1 py-3 bg-white/5 hover:bg-white/10 border border-white/5 rounded-xl text-[10px] font-bold tracking-widest text-gray-300 uppercase transition-all active:scale-95"
+          className="flex-1 py-2 bg-white/5 hover:bg-white/10 border border-white/5 rounded-xl text-[10px] font-bold tracking-widest text-gray-300 uppercase transition-all active:scale-95"
         >
           Open
         </button>
         <button 
           onClick={handleAllClosed}
-          className="flex-1 py-3 bg-white/5 hover:bg-white/10 border border-white/5 rounded-xl text-[10px] font-bold tracking-widest text-gray-300 uppercase transition-all active:scale-95"
+          className="flex-1 py-2 bg-white/5 hover:bg-white/10 border border-white/5 rounded-xl text-[10px] font-bold tracking-widest text-gray-300 uppercase transition-all active:scale-95"
         >
           Closed
         </button>

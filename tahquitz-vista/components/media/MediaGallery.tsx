@@ -11,6 +11,9 @@ export default function MediaGallery() {
   const [series, setSeries] = useState<JellyfinItem[]>([]);
   const [loading, setLoading] = useState(true);
 
+  const [activeVideo, setActiveVideo] = useState<JellyfinItem | null>(null);
+  const videoRef = React.useRef<HTMLVideoElement>(null);
+
   useEffect(() => {
     async function fetchMedia() {
       // Fetch both movies and series in parallel
@@ -26,14 +29,72 @@ export default function MediaGallery() {
   }, []);
 
   const handlePlay = (item: JellyfinItem) => {
-    console.log(`[MediaGallery] Sync to Monitor -> Playing: ${item.Name}`);
-    // In the future, this emits a WebSocket payload to Tahquitz Core to start playback on the bulkhead monitor
+    setActiveVideo(item);
+  };
+
+  const handlePiP = async () => {
+    if (videoRef.current && document.pictureInPictureEnabled) {
+      if (document.pictureInPictureElement) {
+        await document.exitPictureInPicture();
+      } else {
+        await videoRef.current.requestPictureInPicture();
+      }
+    }
   };
 
   if (loading) {
     return (
       <div className="w-full h-48 flex items-center justify-center">
         <div className="animate-pulse w-8 h-8 rounded-full" style={{ backgroundColor: activeColors.accent }} />
+      </div>
+    );
+  }
+
+  // Active Video Player Mode
+  if (activeVideo) {
+    return (
+      <div className="w-full h-full flex flex-col bg-black rounded-2xl overflow-hidden relative group">
+        
+        {/* Top Controls Overlay */}
+        <div className="absolute top-0 left-0 right-0 p-4 bg-gradient-to-b from-black/80 to-transparent z-10 flex justify-between items-start opacity-0 group-hover:opacity-100 transition-opacity">
+          <div>
+             <h2 className="text-white text-lg font-medium">{activeVideo.Name}</h2>
+             <p className="text-gray-400 text-xs tracking-widest uppercase">{activeVideo.ProductionYear || 'Unknown'}</p>
+          </div>
+          
+          <div className="flex gap-2">
+            <button 
+              onClick={handlePiP}
+              className="p-2 bg-white/10 hover:bg-white/20 rounded-full text-white backdrop-blur-md transition-colors"
+              title="Picture in Picture"
+            >
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                <rect x="11" y="11" width="8" height="6" rx="1" ry="1"></rect>
+              </svg>
+            </button>
+            <button 
+              onClick={() => setActiveVideo(null)}
+              className="p-2 bg-white/10 hover:bg-white/20 rounded-full text-white backdrop-blur-md transition-colors"
+              title="Close Player"
+            >
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <line x1="18" y1="6" x2="6" y2="18"></line>
+                <line x1="6" y1="6" x2="18" y2="18"></line>
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        {/* Dummy Video Player */}
+        <video 
+          ref={videoRef}
+          src="https://www.w3schools.com/html/mov_bbb.mp4" 
+          className="w-full h-full object-cover"
+          autoPlay 
+          controls 
+          crossOrigin="anonymous"
+        />
       </div>
     );
   }
@@ -83,7 +144,7 @@ export default function MediaGallery() {
   );
 
   return (
-    <div className="w-full flex flex-col pt-2">
+    <div className="w-full h-full flex flex-col pt-2 overflow-y-auto no-scrollbar">
       {renderGrid('Movies', movies)}
       {renderGrid('Television', series)}
     </div>
