@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useTheme } from "./providers";
 import AircraftLOPA from "@/components/layout/AircraftLOPA";
@@ -20,13 +20,35 @@ import ModularDashboard from "@/components/dashboard/ModularDashboard";
 type ViewState = 'lopa' | 'dashboard';
 
 export default function Home() {
-  const { activeColors } = useTheme();
+  const { activeColors, updateTheme } = useTheme();
   
   const [activeView, setActiveView] = useState<ViewState>('lopa');
   const [activeZoneId, setActiveZoneId] = useState<string | null>(null);
   const [activeZoneName, setActiveZoneName] = useState<string | null>(null);
   const [immersionMode, setImmersionMode] = useState<ImmersionMode>('Default');
   const [isLightingPanelOpen, setIsLightingPanelOpen] = useState(false);
+  
+  // Simulator State
+  const [simRole, setSimRole] = useState<string | null>(null);
+  const [simDevice, setSimDevice] = useState<string | null>(null);
+
+  useEffect(() => {
+    // Read query parameters for simulator mode
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get('simulate') === 'true') {
+        const accent = params.get('accent');
+        const role = params.get('role');
+        const device = params.get('device');
+        
+        if (accent && accent !== activeColors.accent) {
+          updateTheme({ darkTheme: { ...activeColors, accent } });
+        }
+        if (role) setSimRole(role);
+        if (device) setSimDevice(device);
+      }
+    }
+  }, []);
 
   const handleZoneSelect = (id: string, name: string) => {
     setActiveZoneId(id);
@@ -113,8 +135,11 @@ export default function Home() {
             )}
           </AnimatePresence>
           <div className="flex items-center gap-4">
-            <h1 className="text-xl font-light tracking-widest uppercase">
+            <h1 className="text-xl font-light tracking-widest uppercase flex items-center gap-3">
               {activeView === 'lopa' ? 'TAHQUITZ VVIP' : activeZoneName}
+              {simRole === 'crew' && (
+                 <span className="px-2 py-1 bg-red-900/50 border border-red-500/50 text-red-500 rounded text-[10px] font-bold">CREW MODE</span>
+              )}
             </h1>
             {activeView === 'lopa' && (
               <button 
