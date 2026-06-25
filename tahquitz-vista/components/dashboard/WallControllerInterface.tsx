@@ -14,7 +14,7 @@ export default function WallControllerInterface({ zoneName }: WallControllerInte
   const [temperature, setTemperature] = useState(72);
 
   return (
-    <div className="w-full h-full bg-black flex flex-col p-6 overflow-hidden text-white relative">
+    <div className="w-full h-full bg-transparent flex flex-col p-6 overflow-hidden text-white relative">
       
       {/* Background glow based on active state */}
       <div className={`absolute inset-0 opacity-10 transition-colors duration-1000 ${lightsOn ? 'bg-white' : 'bg-transparent'}`} />

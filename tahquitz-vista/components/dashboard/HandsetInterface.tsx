@@ -8,7 +8,7 @@ export default function HandsetInterface() {
   const [isPlaying, setIsPlaying] = useState(true);
 
   return (
-    <div className="w-full h-full bg-black flex items-center justify-between p-6 overflow-hidden">
+    <div className="w-full h-full bg-transparent flex items-center justify-between p-6 overflow-hidden">
       
       {/* Left: Transport Controls & Now Playing */}
       <div className="flex flex-col justify-between h-full w-2/3">

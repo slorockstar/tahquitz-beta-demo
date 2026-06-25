@@ -19,13 +19,12 @@ import { useTheme } from '@/app/providers';
 import { getAircraftConfig, ZoneHardwareConfig } from '@/lib/config-store';
 
 // Responsive grid parameters
-const GRID_COLS = 12;
 const ROW_HEIGHT = 120;
 
 // Master Layout map - defining where things go IF they exist
 const masterLayout: any[] = [
   { i: 'media', x: 0, y: 0, w: 12, h: 4 },
-  { i: 'audio', x: 0, y: 0, w: 6, h: 3 }, // Audio uses less space if no media
+  { i: 'audio', x: 0, y: 0, w: 6, h: 3 },
   { i: 'map', x: 0, y: 4, w: 8, h: 4 },
   { i: 'data', x: 8, y: 4, w: 4, h: 2 },
   { i: 'climate', x: 8, y: 6, w: 4, h: 3 },
@@ -71,12 +70,12 @@ export default function ModularDashboard({ zoneId, immersionMode, setImmersionMo
   const [layout, setLayout] = useState<any[]>(defaultZoneLayout);
   const [isMounted, setIsMounted] = useState(false);
   const [width, setWidth] = useState(1200);
+  const [cols, setCols] = useState(12);
   const [isEditing, setIsEditing] = useState(false);
 
   useEffect(() => {
     setIsMounted(true);
     
-    // Load from local storage for personalization PER ZONE
     const saved = localStorage.getItem(`tahquitz-dashboard-layout-${zoneId}`);
     if (saved) {
       try {
@@ -88,10 +87,15 @@ export default function ModularDashboard({ zoneId, immersionMode, setImmersionMo
       setLayout(defaultZoneLayout);
     }
 
-    // Basic width listener for the grid layout
     const handleResize = () => {
       const container = document.getElementById('dashboard-container');
-      if (container) setWidth(container.clientWidth);
+      if (container) {
+        const w = container.clientWidth;
+        setWidth(w);
+        if (w < 600) setCols(4);      // Phone
+        else if (w < 1000) setCols(8); // Small Tablet
+        else setCols(12);             // Tablet / Desktop
+      }
     };
     
     handleResize();
@@ -142,7 +146,7 @@ export default function ModularDashboard({ zoneId, immersionMode, setImmersionMo
       <Grid
         className="layout"
         layout={layout}
-        cols={GRID_COLS}
+        cols={cols}
         rowHeight={ROW_HEIGHT}
         width={width}
         onLayoutChange={onLayoutChange}
