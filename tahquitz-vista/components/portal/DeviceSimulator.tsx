@@ -8,16 +8,17 @@ export type DeviceType = 'crew_terminal' | 'tablet' | 'phone' | 'handset' | 'wal
 interface DeviceSimulatorProps {
   themeMode: 'light' | 'dark';
   accentColor: string;
+  gradient?: string;
 }
 
-export default function DeviceSimulator({ themeMode, accentColor }: DeviceSimulatorProps) {
+export default function DeviceSimulator({ themeMode, accentColor, gradient }: DeviceSimulatorProps) {
   const [activeDevice, setActiveDevice] = useState<DeviceType>('tablet');
 
   const devices: { id: DeviceType; name: string; width: number; height: number; scale: number; role: string }[] = [
     { id: 'crew_terminal', name: 'Crew Terminal', width: 1024, height: 768, scale: 0.7, role: 'crew' },
     { id: 'tablet', name: 'Passenger Tablet', width: 1024, height: 768, scale: 0.7, role: 'passenger' },
     { id: 'phone', name: 'Passenger Phone', width: 390, height: 844, scale: 0.8, role: 'passenger' },
-    { id: 'handset', name: 'Passenger Handset', width: 320, height: 600, scale: 0.9, role: 'passenger' },
+    { id: 'handset', name: 'Passenger Handset', width: 480, height: 240, scale: 1.0, role: 'passenger' }, // Switched handset to landscape
     { id: 'wall_controller', name: '4.3" Wall Controller', width: 480, height: 320, scale: 1.0, role: 'passenger' },
   ];
 
@@ -71,7 +72,7 @@ export default function DeviceSimulator({ themeMode, accentColor }: DeviceSimula
               <div className="w-full h-full bg-black relative">
                 {/* We pass URL parameters so the app knows it's being simulated and what role it has */}
                 <iframe 
-                  src={`/?simulate=true&role=${current.role}&device=${activeDevice}&accent=${encodeURIComponent(accentColor)}`}
+                  src={`/demo?simulate=true&role=${current.role}&device=${activeDevice}&accent=${encodeURIComponent(accentColor)}&gradient=${encodeURIComponent(gradient || '')}`}
                   className="w-full h-full border-0"
                   title="Tahquitz GUI Simulator"
                 />

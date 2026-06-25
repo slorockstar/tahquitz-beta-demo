@@ -12,6 +12,7 @@ interface DevelopmentViewProps {
 
 export default function DevelopmentView({ aircraft, onBack, onApprove }: DevelopmentViewProps) {
   const [accentColor, setAccentColor] = useState(aircraft.liveryColor || '#D4AF37');
+  const [gradient, setGradient] = useState('bg-black');
   
   return (
     <div className="w-full h-full flex flex-col text-white bg-black">
@@ -81,6 +82,28 @@ export default function DevelopmentView({ aircraft, onBack, onApprove }: Develop
                    <div className="flex-1 h-2 rounded-full" style={{ backgroundColor: accentColor }} />
                  </div>
               </div>
+
+              <div className="mt-6">
+                 <label className="text-xs text-gray-400 uppercase tracking-widest mb-2 block">Background Gradient</label>
+                 <div className="grid grid-cols-2 gap-2">
+                   {[
+                     { id: 'bg-black', name: 'OLED Black', class: 'bg-black' },
+                     { id: 'bg-gradient-to-br from-[#0f2027] via-[#203a43] to-[#2c5364]', name: 'Zen Slate', class: 'bg-gradient-to-br from-[#0f2027] via-[#203a43] to-[#2c5364]' },
+                     { id: 'bg-gradient-to-br from-[#0f172a] to-[#1e1b4b]', name: 'Deep Space', class: 'bg-gradient-to-br from-[#0f172a] to-[#1e1b4b]' },
+                     { id: 'bg-gradient-to-br from-[#2b1055] to-[#7597de]', name: 'Nebula', class: 'bg-gradient-to-br from-[#2b1055] to-[#7597de]' }
+                   ].map(g => (
+                     <button
+                       key={g.id}
+                       onClick={() => setGradient(g.id)}
+                       className={`w-full h-12 rounded-xl border flex items-center justify-center transition-all ${
+                         gradient === g.id ? 'border-white ring-2 ring-white/20' : 'border-white/10 opacity-50 hover:opacity-100'
+                       } ${g.class}`}
+                     >
+                       <span className="text-[10px] font-bold tracking-widest uppercase text-white/80 mix-blend-difference">{g.name}</span>
+                     </button>
+                   ))}
+                 </div>
+              </div>
            </div>
 
            {/* LOPA Room Editor */}
@@ -106,7 +129,7 @@ export default function DevelopmentView({ aircraft, onBack, onApprove }: Develop
 
         {/* Right Side: Interactive Device Simulator */}
         <div className="flex-1 relative">
-           <DeviceSimulator themeMode="dark" accentColor={accentColor} />
+           <DeviceSimulator themeMode="dark" accentColor={accentColor} gradient={gradient} />
         </div>
 
       </div>
