@@ -7,6 +7,7 @@ export default function AudioPlayer() {
   const { activeColors } = useTheme();
   const [isPlaying, setIsPlaying] = useState(false);
   const [volume, setVolume] = useState(50);
+  const [activeEq, setActiveEq] = useState('Acoustic');
   
   // Dummy track data
   const tracks = [
@@ -21,7 +22,7 @@ export default function AudioPlayer() {
       
       {/* Decorative Blur Background */}
       <div 
-        className="absolute -top-10 -right-10 w-48 h-48 rounded-full blur-[60px] opacity-20 pointer-events-none"
+        className="absolute -top-10 -right-10 w-48 h-48 rounded-full blur-[60px] opacity-20 pointer-events-none transition-colors duration-1000"
         style={{ backgroundColor: activeColors.accent || '#D4AF37' }}
       />
 
@@ -69,23 +70,39 @@ export default function AudioPlayer() {
          </div>
       </div>
 
-      {/* Volume Slider */}
-      <div className="flex items-center gap-4 w-full z-10 mt-auto">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-gray-400 shrink-0">
-          <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
-        </svg>
-        <div className="flex-1 h-1 bg-white/10 rounded-full relative">
-          <div 
-            className="absolute top-0 left-0 h-full rounded-full" 
-            style={{ width: `${volume}%`, backgroundColor: activeColors.accent || '#FFF' }}
-          />
-          <input 
-            type="range" 
-            min="0" max="100" 
-            value={volume} 
-            onChange={(e) => setVolume(Number(e.target.value))}
-            className="absolute inset-0 w-full opacity-0 cursor-pointer"
-          />
+      <div className="flex flex-col gap-4 z-10 mt-auto">
+        {/* EQ Presets */}
+        <div className="flex justify-between items-center gap-2">
+           {['Acoustic', 'Cinema', 'Bass Boost'].map(eq => (
+             <button 
+                key={eq}
+                onClick={() => setActiveEq(eq)}
+                className={`flex-1 py-2 text-[9px] uppercase tracking-widest rounded-lg border transition-colors ${activeEq === eq ? 'text-black font-bold border-transparent' : 'text-gray-400 border-white/10 hover:border-white/30 bg-white/5'}`}
+                style={{ backgroundColor: activeEq === eq ? activeColors.accent : undefined }}
+             >
+               {eq}
+             </button>
+           ))}
+        </div>
+
+        {/* Volume Slider */}
+        <div className="flex items-center gap-4 w-full">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-gray-400 shrink-0">
+            <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+          </svg>
+          <div className="flex-1 h-1 bg-white/10 rounded-full relative">
+            <div 
+              className="absolute top-0 left-0 h-full rounded-full transition-all duration-300" 
+              style={{ width: `${volume}%`, backgroundColor: activeColors.accent || '#FFF' }}
+            />
+            <input 
+              type="range" 
+              min="0" max="100" 
+              value={volume} 
+              onChange={(e) => setVolume(Number(e.target.value))}
+              className="absolute inset-0 w-full opacity-0 cursor-pointer"
+            />
+          </div>
         </div>
       </div>
 

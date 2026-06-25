@@ -28,7 +28,6 @@ export default function Home() {
   const [immersionMode, setImmersionMode] = useState<ImmersionMode>('Default');
   const [isLightingPanelOpen, setIsLightingPanelOpen] = useState(false);
 
-  // ... (keep handleZoneSelect, etc.)
   const handleZoneSelect = (id: string, name: string) => {
     setActiveZoneId(id);
     setActiveZoneName(name);
@@ -39,6 +38,12 @@ export default function Home() {
     setActiveView('lopa');
     setActiveZoneId(null);
     setActiveZoneName(null);
+  };
+
+  const handleVoiceCommand = (command: string) => {
+    if (command === 'lights') {
+      setIsLightingPanelOpen(true);
+    }
   };
 
   const variants = {
@@ -163,7 +168,7 @@ export default function Home() {
         </AnimatePresence>
       </div>
 
-      <TahquitzAssistant />
+      <TahquitzAssistant onCommand={handleVoiceCommand} />
 
     </main>
   );

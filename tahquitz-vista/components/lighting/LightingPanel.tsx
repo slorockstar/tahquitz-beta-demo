@@ -13,11 +13,35 @@ interface LightingPanelProps {
 }
 
 export default function LightingPanel({ isOpen, onClose, zoneName }: LightingPanelProps) {
-  const { activeColors } = useTheme();
+  const { activeColors, updateTheme } = useTheme();
 
   // Mock state for dimmers
   const [tableLights, setTableLights] = useState(80);
   const [readingLights, setReadingLights] = useState(0);
+
+  const applyScenario = (scenario: 'Boarding' | 'Dining' | 'Sleep' | 'Wake') => {
+    let newAccent = activeColors.accent;
+    
+    if (scenario === 'Boarding') {
+      newAccent = '#D4AF37'; // Tahquitz Gold
+      setTableLights(100);
+      setReadingLights(50);
+    } else if (scenario === 'Dining') {
+      newAccent = '#E5E4E2'; // Platinum
+      setTableLights(60);
+      setReadingLights(0);
+    } else if (scenario === 'Sleep') {
+      newAccent = '#004B87'; // Deep Blue
+      setTableLights(0);
+      setReadingLights(0);
+    } else if (scenario === 'Wake') {
+      newAccent = '#DA8A67'; // Sunrise Copper
+      setTableLights(40);
+      setReadingLights(80);
+    }
+
+    updateTheme({ darkTheme: { ...activeColors, accent: newAccent } });
+  };
 
   return (
     <AnimatePresence>
@@ -66,12 +90,22 @@ export default function LightingPanel({ isOpen, onClose, zoneName }: LightingPan
                   All Off
                 </button>
               </div>
-              <button className="w-full mt-2 py-3 bg-white/5 hover:bg-white/10 border border-white/5 rounded-xl text-xs font-bold tracking-widest text-[#B39B5E] uppercase transition-all flex items-center justify-center gap-2">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <path d="M21 12V7H5a2 2 0 010-4h14v4" />
-                </svg>
-                Light Scenarios
-              </button>
+              
+              <div className="mt-6">
+                 <h3 className="text-[10px] tracking-widest text-gray-500 uppercase font-medium mb-3">Light Scenarios</h3>
+                 <div className="grid grid-cols-2 gap-2">
+                   {['Boarding', 'Dining', 'Sleep', 'Wake'].map(scenario => (
+                      <button 
+                        key={scenario}
+                        onClick={() => applyScenario(scenario as any)}
+                        className="py-3 bg-white/5 hover:bg-white/10 border border-white/5 rounded-xl text-xs font-bold tracking-widest text-white uppercase transition-all flex justify-center items-center gap-2"
+                        style={{ color: activeColors.accent }}
+                      >
+                        {scenario}
+                      </button>
+                   ))}
+                 </div>
+              </div>
             </div>
 
             {/* RGB Washes */}
@@ -94,7 +128,7 @@ export default function LightingPanel({ isOpen, onClose, zoneName }: LightingPan
                 </div>
                 <input 
                   type="range" min="0" max="100" value={tableLights} onChange={e => setTableLights(parseInt(e.target.value))}
-                  className="w-full h-1 bg-white/10 rounded-full appearance-none outline-none [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:rounded-full cursor-pointer"
+                  className="w-full h-1 bg-white/10 rounded-full appearance-none outline-none [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:rounded-full cursor-pointer transition-all duration-1000"
                   style={{ background: `linear-gradient(to right, ${activeColors.accent} ${tableLights}%, rgba(255,255,255,0.1) ${tableLights}%)` }}
                 />
               </div>
@@ -107,13 +141,13 @@ export default function LightingPanel({ isOpen, onClose, zoneName }: LightingPan
                 </div>
                 <input 
                   type="range" min="0" max="100" value={readingLights} onChange={e => setReadingLights(parseInt(e.target.value))}
-                  className="w-full h-1 bg-white/10 rounded-full appearance-none outline-none [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:rounded-full cursor-pointer"
+                  className="w-full h-1 bg-white/10 rounded-full appearance-none outline-none [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:rounded-full cursor-pointer transition-all duration-1000"
                   style={{ background: `linear-gradient(to right, ${activeColors.accent} ${readingLights}%, rgba(255,255,255,0.1) ${readingLights}%)` }}
                 />
               </div>
 
               {/* Toggles */}
-              <div className="grid grid-cols-2 gap-4 mt-4">
+              <div className="grid grid-cols-2 gap-4 mt-4 pb-20">
                 <TactileSwitch label="Ceiling Spots" initialState={true} />
                 <TactileSwitch label="Bar Cabinet" initialState={false} />
                 <TactileSwitch label="Bar Top" initialState={true} />

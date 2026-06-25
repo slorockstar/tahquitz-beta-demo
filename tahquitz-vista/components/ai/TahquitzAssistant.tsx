@@ -4,7 +4,11 @@ import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useTheme } from '@/app/providers';
 
-export default function TahquitzAssistant() {
+interface TahquitzAssistantProps {
+  onCommand?: (query: string) => void;
+}
+
+export default function TahquitzAssistant({ onCommand }: TahquitzAssistantProps) {
   const { activeColors } = useTheme();
   const [isListening, setIsListening] = useState(false);
   const [query, setQuery] = useState("");
@@ -21,9 +25,18 @@ export default function TahquitzAssistant() {
     if (!query) return;
     
     console.log(`[Tahquitz AI] Processing Command: "${query}"`);
-    // Here we would send the string to Tahquitz Core / LLM for ARINC translation
+    
+    const lowerQuery = query.toLowerCase();
+    if (onCommand) {
+      if (lowerQuery.includes('light') || lowerQuery.includes('dim') || lowerQuery.includes('bright')) {
+        onCommand('lights');
+      } else {
+        onCommand(lowerQuery);
+      }
+    }
     
     setQuery("");
+    setIsListening(false);
   };
 
   return (
