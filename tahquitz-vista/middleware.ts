@@ -24,7 +24,7 @@ export function middleware(req: NextRequest) {
   });
 }
 
-// Protect all routes
+// Protect only specific routes
 export const config = {
-  matcher: '/:path*',
+  matcher: ['/demo/:path*', '/portal/:path*'],
 };
