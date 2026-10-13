@@ -2,6 +2,7 @@
 
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import DevPanel from './HandsetDevPanel';
 
 /* =========================================================
    TAHQUITZ "MERIDIAN" — compact 2″×5″ corded handset
@@ -26,11 +27,12 @@ import { motion, AnimatePresence } from 'framer-motion';
    • Every key's legend is drawn by the display under the glass, so it changes by context.
    ========================================================= */
 
-type Tier = 'economy' | 'premium' | 'business';
-type Kind = 'Movies' | 'TV' | 'Music';
-type Item = { kind: Kind; title: string; sub: string; art: string; hue: number; duration: number; chapters: string[] };
+export type Tier = 'economy' | 'premium' | 'business';
+export type Kind = 'Movies' | 'TV' | 'Music';
+export type Item = { kind: Kind; title: string; sub: string; art: string; hue: number; duration: number; chapters: string[] };
+export type Library = Record<Kind, Item[]>;
 
-const LIBRARY: Record<Kind, Item[]> = {
+export const LIBRARY: Library = {
   Movies: [
     { kind: 'Movies', title: 'Last Light', sub: 'Sci-Fi · 2h 18m · PG-13', art: '/handset/last_light.jpg', hue: 28, duration: 8280, chapters: ['Launch', 'Drift', 'Ice Ridge', 'Signal', 'Sunrise'] },
     { kind: 'Movies', title: 'Harbor Lights', sub: 'Romance · 1h 52m · PG', art: '/handset/harbor_lights.jpg', hue: 340, duration: 6720, chapters: ['Arrival', 'The Tram', 'Rain', 'Fado Night', 'Goodbye?'] },
@@ -45,7 +47,7 @@ const LIBRARY: Record<Kind, Item[]> = {
     { kind: 'Music', title: 'Blue Hour at FL410', sub: 'The Ellison Quartet', art: '/handset/midnight_altitude.jpg', hue: 222, duration: 318, chapters: ['Head', 'Sax Solo', 'Piano Solo', 'Outro'] },
   ],
 };
-const KINDS: Kind[] = ['Movies', 'TV', 'Music'];
+export const KINDS: Kind[] = ['Movies', 'TV', 'Music'];
 const KIND_ICON: Record<Kind, string> = { Movies: '🎬', TV: '📺', Music: '♪' };
 const SLEEP_STEPS = [0, 15, 30, 60];
 const fmt = (s: number) => {
@@ -167,7 +169,7 @@ function MusicBars({ playing, hue, gradient }: { playing: boolean; hue: number; 
 /* =========================================================
    Engine
    ========================================================= */
-function useHandset(initial: Item = LIBRARY.Movies[0]) {
+function useHandset(lib: Library, initial: Item) {
   const [playing, setPlaying] = useState<Item>(initial);
   const [pos, setPos] = useState(initial.kind === 'Music' ? 52 : 2710);
   const [isPlaying, setIsPlaying] = useState(true);
@@ -204,7 +206,7 @@ function useHandset(initial: Item = LIBRARY.Movies[0]) {
   const dimT = useRef<ReturnType<typeof setTimeout> | null>(null);
   const touch = () => {
     if (dimT.current) clearTimeout(dimT.current);
-    dimT.current = setTimeout(() => { dimRef.current = true; setDimmed(true); }, 12000); // backlight timeout
+    dimT.current = setTimeout(() => { dimRef.current = true; setDimmed(true); }, 10000); // backlight timeout: 10s after last interaction
   };
   useEffect(() => { touch(); return () => { if (dimT.current) clearTimeout(dimT.current); }; }, []);
   const wake = () => {
@@ -222,18 +224,18 @@ function useHandset(initial: Item = LIBRARY.Movies[0]) {
   };
   const scrub = (d: 1 | -1) => {
     if (wake()) return;
-    if (menu) { bumpIdle(); const n = LIBRARY[KINDS[cat]].length; setIdx((i) => (i + d + n) % n); return; }
+    if (menu) { bumpIdle(); const n = Math.max(1, lib[KINDS[cat]].length); setIdx((i) => (i + d + n) % n); return; }
     const step = playing.kind === 'Music' ? 10 : 30;
     setPos((p) => Math.max(0, Math.min(playing.duration - 1, p + d * step))); flash('seek');
   };
   const orb = () => {
     if (wake()) return;
-    if (menu) { const it = LIBRARY[KINDS[cat]][idx]; setPlaying(it); setPos(0); setIsPlaying(true); setMenu(false); flash('sent'); return; }
+    if (menu) { const it = lib[KINDS[cat]][idx]; if (!it) return; setPlaying(it); setPos(0); setIsPlaying(true); setMenu(false); flash('sent'); return; }
     setIsPlaying((x) => !x); flash('play');
   };
   const menuKey = () => {
     if (wake()) return;
-    if (!menu) { setCat(KINDS.indexOf(playing.kind)); setIdx(Math.max(0, LIBRARY[playing.kind].findIndex((x) => x.title === playing.title))); bumpIdle(); }
+    if (!menu) { setCat(KINDS.indexOf(playing.kind)); setIdx(Math.max(0, lib[playing.kind].findIndex((x) => x.title === playing.title))); bumpIdle(); }
     setMenu((m) => !m);
   };
   const lightKey = () => { if (wake()) return; setLight((l) => !l); flash('light'); };
@@ -242,7 +244,7 @@ function useHandset(initial: Item = LIBRARY.Movies[0]) {
 
   return {
     playing, pos, isPlaying, volume, menu, cat, idx, osd, call, light, asleep, sleepStep, dimmed,
-    vol, scrub, orb, menuKey, lightKey, powerTap, powerHold, toggleCall: () => { wake(); setCall((c) => !c); },
+    vol, scrub, orb, menuKey, lightKey, powerTap, powerHold, wake, toggleCall: () => { wake(); setCall((c) => !c); },
   };
 }
 type H = ReturnType<typeof useHandset>;
@@ -328,8 +330,8 @@ function Glass({ tier, hue, shape, style, children, onPress, onHold, label, unde
 /* =========================================================
    One handset
    ========================================================= */
-function Handset({ tier, label, tagline, mood, theme }: { tier: Tier; label: string; tagline: string; mood: Mood; theme: Theme }) {
-  const h = useHandset(tier === 'economy' ? LIBRARY.Movies[0] : LIBRARY.Music[tier === 'business' ? 1 : 0]);
+export function Handset({ tier, label, tagline, mood, theme, lib }: { tier: Tier; label: string; tagline: string; mood: Mood; theme: Theme; lib: Library }) {
+  const h = useHandset(lib, (tier === 'economy' ? lib.Movies[0] : lib.Music[tier === 'business' ? 1 : 0]) ?? lib.Music[0] ?? lib.Movies[0] ?? LIBRARY.Music[0]);
   const m = resolveMood(mood);
   // Liquid volume: remember direction of last change so the surface can slosh
   const prevVol = useRef(h.volume);
@@ -343,8 +345,8 @@ function Handset({ tier, label, tagline, mood, theme }: { tier: Tier; label: str
   const moodFilter = m === 'night' ? 'brightness(.82) saturate(.9)' : m === 'dark' ? 'brightness(.55) sepia(.55) hue-rotate(-25deg) saturate(1.6)' : m === 'sunset' ? 'saturate(1.15)' : 'none';
   const pct = h.pos / h.playing.duration;
   const chapter = h.playing.chapters[Math.min(h.playing.chapters.length - 1, Math.floor(pct * h.playing.chapters.length))];
-  const list = LIBRARY[KINDS[h.cat]];
-  const item = list[h.idx];
+  const list = lib[KINDS[h.cat]];
+  const item = list[h.idx] ?? { kind: KINDS[h.cat], title: 'Nothing here yet', sub: 'Add titles in Developer mode', art: '', hue: 220, duration: 1, chapters: [''] };
   const pwrT = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pwrHeld = useRef(false);
 
@@ -415,7 +417,8 @@ function Handset({ tier, label, tagline, mood, theme }: { tier: Tier; label: str
               : m === 'night' ? 'linear-gradient(180deg, rgba(40,50,140,.35), rgba(10,10,40,.25))' : m === 'dark' ? 'rgba(60,0,0,.25)' : 'transparent', mixBlendMode: 'screen' }} />
 
           {/* ---------- DISPLAY ZONE ---------- */}
-          <div className="absolute inset-x-0 top-0 h-[272px] px-4 pt-4 flex flex-col" style={{ opacity: h.dimmed ? 0.2 : 1, transition: 'opacity .9s ease' }}>
+          <div id={`now-playing-${tier}`} onPointerDown={() => h.wake()} className="absolute inset-x-0 top-0 h-[272px] px-4 pt-4 flex flex-col cursor-pointer"
+            style={{ opacity: h.dimmed ? 0.2 : 1, transition: h.dimmed ? 'opacity .9s ease' : 'opacity .25s ease' }}>
             <div className="flex justify-between items-center text-[10px] text-white/50 uppercase tracking-widest">
               <span>32C</span>
               <span className="flex items-center gap-1.5">
@@ -480,7 +483,7 @@ function Handset({ tier, label, tagline, mood, theme }: { tier: Tier; label: str
                       ) : (
                         <>
                           <div className="relative flex-1 min-h-0 rounded-2xl overflow-hidden">
-                            <img src={item.art} alt="" className="absolute inset-0 w-full h-full object-cover" />
+                            {item.art ? <img src={item.art} alt="" className="absolute inset-0 w-full h-full object-cover" /> : <div className="absolute inset-0" style={{ background: `linear-gradient(160deg, hsl(${item.hue} 50% 30%), #050507)` }} />}
                             {tier === 'business' && <motion.div className="absolute inset-0" animate={{ opacity: [0.3, 0.6, 0.3] }} transition={{ duration: 5, repeat: Infinity }}
                               style={{ background: `linear-gradient(160deg, transparent 40%, hsl(${item.hue} 80% 50% / .5))` }} />}
                           </div>
@@ -509,37 +512,38 @@ function Handset({ tier, label, tagline, mood, theme }: { tier: Tier; label: str
           </Glass>
 
           {/* Lower-left ancillary: LIGHT */}
-          <Glass tier={tier} hue={hue} shape="squircle" label="Reading light" onPress={h.lightKey}
+          {/* Light key: "on" uses the same accent language as every other key (no off-palette yellow) */}
+          <Glass tier={tier} hue={hue} shape="squircle" label="Reading light" onPress={h.lightKey} dim={h.dimmed}
             style={{ left: 10, top: 372, width: 46, height: 62 }}
-            under={h.light && tier !== 'economy' ? <motion.div className="absolute inset-0" animate={{ opacity: [0.55, 0.9, 0.55] }} transition={{ duration: 2.6, repeat: Infinity }}
-              style={{ background: 'radial-gradient(circle at 50% 40%, rgba(255,205,120,.7), rgba(255,150,60,.15) 55%, transparent 75%)' }} /> : undefined}>
+            under={h.light && tier !== 'economy' ? <motion.div className="absolute inset-0" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.5 }}
+              style={{ background: tier === 'business'
+                ? `radial-gradient(circle at 50% 38%, hsl(${hue} 85% 72% / .55), hsl(${hue + 60} 80% 60% / .18) 55%, transparent 78%)`
+                : `radial-gradient(circle at 50% 38%, ${accent.replace(')', ' / .45)')}, transparent 72%)` }} /> : undefined}>
             <svg viewBox="-12 -12 24 24" width="30" height="30" className="overflow-visible"
-              style={{ filter: h.light ? 'drop-shadow(0 0 6px rgba(255,200,110,.95))' : 'none', transition: 'filter .4s' }}>
-              {/* rays */}
-              <motion.g animate={h.light ? { rotate: 360, opacity: 1, scale: [1, 1.12, 1] } : { opacity: 0, scale: 0.6 }}
-                transition={h.light ? { rotate: { duration: 14, repeat: Infinity, ease: 'linear' }, scale: { duration: 1.8, repeat: Infinity }, opacity: { duration: 0.3 } } : { duration: 0.2 }}>
-                {Array.from({ length: 8 }).map((_, i) => (
-                  <line key={i} x1="0" y1="-8.5" x2="0" y2="-11" stroke="#ffd27a" strokeWidth="1.4" strokeLinecap="round" transform={`rotate(${i * 45})`} />
-                ))}
-              </motion.g>
-              {/* bulb */}
+              style={{ filter: h.light && tier !== 'economy' ? `drop-shadow(0 0 5px ${accent})` : 'none', transition: 'filter .4s' }}>
+              {/* rays: fade + extend in once, then hold still */}
+              {Array.from({ length: 8 }).map((_, i) => (
+                <motion.line key={i} x1="0" x2="0" stroke={h.light ? accent : 'rgba(255,255,255,.6)'} strokeWidth="1.3" strokeLinecap="round" transform={`rotate(${i * 45})`}
+                  initial={false} animate={h.light ? { y1: -8.5, y2: -11, opacity: 1 } : { y1: -8.5, y2: -8.5, opacity: 0 }} transition={{ duration: 0.35, delay: h.light ? i * 0.03 : 0 }} />
+              ))}
               <path d="M0 -6.5 a4.6 4.6 0 0 1 2.9 8.2 c-.6.5-.9 1.1-.9 1.8 v.8 h-4 v-.8 c0-.7-.3-1.3-.9-1.8 A4.6 4.6 0 0 1 0 -6.5z"
-                fill={h.light ? '#ffe2a3' : 'none'} stroke={h.light ? '#ffd27a' : 'rgba(255,255,255,.6)'} strokeWidth="1.2" />
-              <path d="M-1.8 5.6 h3.6 M-1.3 7.2 h2.6" stroke={h.light ? '#ffd27a' : 'rgba(255,255,255,.6)'} strokeWidth="1.1" strokeLinecap="round" />
+                fill={h.light ? (tier === 'economy' ? '#fff' : accent) : 'none'} fillOpacity={h.light ? 0.85 : 0} stroke={h.light ? accent : 'rgba(255,255,255,.6)'} strokeWidth="1.2" />
+              <path d="M-1.8 5.6 h3.6 M-1.3 7.2 h2.6" stroke={h.light ? accent : 'rgba(255,255,255,.6)'} strokeWidth="1.1" strokeLinecap="round" />
             </svg>
-            <span className={`text-[9px] mt-0.5 ${h.light ? 'text-amber-200' : 'text-white/60'}`}>{h.light ? 'On' : 'Light'}</span>
+            <span className="text-[9px] mt-0.5" style={{ color: h.light ? accent : 'rgba(255,255,255,.6)' }}>{h.light ? 'On' : 'Light'}</span>
           </Glass>
 
           {/* Airline mark (display-rendered, mood-reactive) */}
           <AirlineLogo tier={tier} mood={m} asleep={h.asleep} light={h.light} theme={theme} />
 
           {/* ORB: play / pause / select */}
-          <Glass tier={tier} hue={hue} shape="orb" label={h.menu ? 'Play on screen' : 'Play / Pause'} onPress={h.orb}
+          <Glass tier={tier} hue={hue} shape="orb" label={h.menu ? 'Play on screen' : 'Play / Pause'} onPress={h.orb} dim={h.dimmed}
             style={{ left: 64, top: 296, width: 74, height: 74 }}
             under={tier === 'business' ? (
               <>
-                <motion.div className="absolute inset-0" animate={{ rotate: 360 }} transition={{ duration: 10, repeat: Infinity, ease: 'linear' }}
-                  style={{ background: `conic-gradient(from 0deg, hsl(${hue} 80% 50% / .35), transparent, hsl(${hue + 150} 80% 55% / .35), transparent)` }} />
+                {/* static glow (no constant spin); fades with backlight */}
+                <div className="absolute inset-0 transition-opacity duration-700" style={{ opacity: h.dimmed ? 0.2 : 1,
+                  background: `radial-gradient(circle at 35% 30%, hsl(${hue} 80% 55% / .35), transparent 60%), radial-gradient(circle at 70% 75%, hsl(${hue + 150} 80% 55% / .3), transparent 60%)` }} />
                 <svg viewBox="0 0 40 40" className="absolute inset-0 w-full h-full -rotate-90">
                   <motion.circle cx="20" cy="20" r="18" stroke="white" strokeOpacity=".85" strokeWidth="1.2" fill="none" strokeLinecap="round"
                     animate={{ pathLength: pct }} transition={{ ease: 'linear', duration: 1 }} />
@@ -642,18 +646,15 @@ function Handset({ tier, label, tagline, mood, theme }: { tier: Tier; label: str
           {/* ---------- Call ---------- */}
           <AnimatePresence>
             {h.call && (
-              <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}
-                className={`absolute inset-x-3 top-3 rounded-2xl px-4 py-3 flex items-center gap-3 z-20 ${tier === 'economy' ? 'bg-sky-400 text-black' : 'bg-sky-500/85 backdrop-blur text-white'}`}>
-                <div className="relative w-8 h-8 flex items-center justify-center">
-                  {tier !== 'economy' && [0, 1].map((r) => (
-                    <motion.span key={r} className="absolute inset-0 rounded-full border-2 border-white" animate={{ scale: [1, 2.2], opacity: [0.8, 0] }} transition={{ duration: 1.4, delay: r * 0.7, repeat: Infinity }} />
-                  ))}
-                  <span className="text-lg">🔔</span>
-                </div>
-                <div>
-                  <p className="text-[14px] font-semibold leading-tight">Crew called</p>
-                  <p className="text-[11px] opacity-80">{tier === 'business' ? 'Sarah is on her way · ~1 min' : 'Press side key to cancel'}</p>
-                </div>
+              <motion.div initial={{ opacity: 0, y: -6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -6 }} transition={{ duration: 0.35 }}
+                className={`absolute inset-x-3 top-3 rounded-full pl-3 pr-4 py-2 flex items-center gap-2.5 z-20 ${tier === 'economy' ? 'bg-white text-black' : 'bg-black/55 backdrop-blur-md text-white border border-white/10'}`}>
+                <span className="relative flex w-2.5 h-2.5">
+                  {tier !== 'economy' && <motion.span className="absolute inset-0 rounded-full" style={{ background: accent }} animate={{ scale: [1, 2], opacity: [0.5, 0] }} transition={{ duration: 2.4, repeat: Infinity, ease: 'easeOut' }} />}
+                  <span className="relative w-2.5 h-2.5 rounded-full" style={{ background: tier === 'economy' ? '#000' : accent }} />
+                </span>
+                <p className="text-[12px] font-medium leading-tight truncate">
+                  Crew called <span className="opacity-60">· {tier === 'business' ? 'Sarah, ~1 min' : 'side key cancels'}</span>
+                </p>
               </motion.div>
             )}
           </AnimatePresence>
@@ -674,32 +675,104 @@ function Handset({ tier, label, tagline, mood, theme }: { tier: Tier; label: str
   );
 }
 
+const LS_THEME = 'meridian.theme.v1';
+const LS_LIB = 'meridian.library.v1';
+const TIER_META: Record<Tier, { label: string; tagline: string }> = {
+  economy: { label: 'Economy', tagline: 'Max legibility · zero graphics · low power' },
+  premium: { label: 'Premium Economy', tagline: 'Artwork · tint · animated feedback' },
+  business: { label: 'Business', tagline: 'Living gradients on every surface' },
+};
+
 export default function HandsetCompact() {
   const [mood, setMood] = useState<Mood>('auto');
-  const [theme] = useState<Theme>(DEFAULT_THEME);
+  const [theme, setTheme] = useState<Theme>(DEFAULT_THEME);
+  const [lib, setLib] = useState<Library>(LIBRARY);
+  const [dev, setDev] = useState(false);
+  const [kiosk, setKiosk] = useState<Tier | null>(null);
+  const [scale, setScale] = useState(1);
+  const loaded = useRef(false);
+
+  // Load persisted config + kiosk param (client only)
+  useEffect(() => {
+    try {
+      const t = localStorage.getItem(LS_THEME); if (t) setTheme({ ...DEFAULT_THEME, ...JSON.parse(t) });
+      const l = localStorage.getItem(LS_LIB); if (l) setLib({ ...LIBRARY, ...JSON.parse(l) });
+    } catch { /* ignore corrupt storage */ }
+    const q = new URLSearchParams(window.location.search);
+    const k = q.get('kiosk') as Tier | null;
+    if (k && k in TIER_META) setKiosk(k);
+    const md = q.get('mood') as Mood | null; if (md) setMood(md);
+    if (q.get('dev') === '1') setDev(true);
+    loaded.current = true;
+  }, []);
+  useEffect(() => {
+    if (!loaded.current) return;
+    try { localStorage.setItem(LS_THEME, JSON.stringify(theme)); } catch { /* quota */ }
+  }, [theme]);
+  useEffect(() => {
+    if (!loaded.current) return;
+    try { localStorage.setItem(LS_LIB, JSON.stringify(lib)); } catch { /* quota */ }
+  }, [lib]);
+  useEffect(() => {
+    if (!kiosk) return;
+    const fit = () => setScale(Math.min(window.innerWidth / 216, window.innerHeight / 520));
+    fit(); window.addEventListener('resize', fit);
+    return () => window.removeEventListener('resize', fit);
+  }, [kiosk]);
+
+  const cssVars = { '--meridian-primary': theme.primary, '--meridian-secondary': theme.secondary, '--meridian-font': theme.font } as React.CSSProperties;
+
+  // Hardware kiosk: one handset, edge to edge, no chrome. e.g. /demo?simulate=true&device=handset&kiosk=business
+  if (kiosk) {
+    return (
+      <div className="fixed inset-0 z-[200] bg-black flex items-center justify-center overflow-hidden" style={cssVars}>
+        <div style={{ transform: `scale(${scale})`, transformOrigin: 'center' }} className="[&>div>div:first-child]:hidden">
+          <Handset tier={kiosk} {...TIER_META[kiosk]} mood={mood} theme={theme} lib={lib} />
+        </div>
+      </div>
+    );
+  }
+
   const opts: [Mood, string][] = [['auto', 'Auto (clock)'], ['day', '☀ Day'], ['sunset', '🌅 Sunset'], ['night', '🌙 Night'], ['dark', '🔴 Cabin dark']];
   return (
-    <div className="w-full h-full overflow-auto flex flex-col items-center pt-16 pb-24 gap-6">
-      <div className="text-center max-w-2xl px-4">
-        <h2 className="text-lg font-semibold text-white">Meridian handset · one SKU, three cabins</h2>
-        <p className="text-[12px] text-white/50 mt-1 leading-relaxed">
-          Volume Blade under the right thumb · Orb + Scrub rocker centre · Menu & Light lower-left · Power on top · Call on the side.
-          Keys are shaped so they can be found by feel; legends are drawn by the display beneath the glass.
-          <br />Keyboard: ↑↓ volume · ←→ scrub · Enter orb · <b className="text-white/80">M</b> menu · <b className="text-white/80">L</b> light · <b className="text-white/80">P</b> sleep timer · <b className="text-white/80">S</b> sleep · <b className="text-white/80">C</b> call
-        </p>
-        <div className="inline-flex items-center gap-1 mt-3 rounded-full bg-black/40 border border-white/10 p-1">
-          <span className="text-[10px] uppercase tracking-widest text-white/40 px-2">Cabin mood</span>
-          {opts.map(([v, l]) => (
-            <button key={v} id={`mood-${v}`} onClick={() => setMood(v)}
-              className={`px-3 py-1.5 rounded-full text-[11px] ${mood === v ? 'bg-white text-black' : 'text-white/70 hover:text-white'}`}>{l}</button>
+    <div className="w-full h-full flex" style={cssVars}>
+      <div className="flex-1 min-w-0 h-full overflow-auto flex flex-col items-center pt-16 pb-24 gap-6">
+        <div className="text-center max-w-2xl px-4">
+          <h2 className="text-lg font-semibold text-white">Meridian handset · one SKU, three cabins</h2>
+          <p className="text-[12px] text-white/50 mt-1 leading-relaxed">
+            Volume Blade under the right thumb · Orb + Scrub rocker centre · Menu &amp; Light lower-left · Power on top · Call on the side.
+            Tap the now-playing area to wake the backlight.
+            <br />Keyboard: ↑↓ volume · ←→ scrub · Enter orb · <b className="text-white/80">M</b> menu · <b className="text-white/80">L</b> light · <b className="text-white/80">P</b> sleep timer · <b className="text-white/80">S</b> sleep · <b className="text-white/80">C</b> call
+          </p>
+          <div className="flex flex-wrap justify-center items-center gap-2 mt-3">
+            <div className="inline-flex items-center gap-1 rounded-full bg-black/40 border border-white/10 p-1">
+              <span className="text-[10px] uppercase tracking-widest text-white/40 px-2">Cabin mood</span>
+              {opts.map(([v, l]) => (
+                <button key={v} id={`mood-${v}`} onClick={() => setMood(v)}
+                  className={`px-3 py-1.5 rounded-full text-[11px] ${mood === v ? 'bg-white text-black' : 'text-white/70 hover:text-white'}`}>{l}</button>
+              ))}
+            </div>
+            <button id="dev-mode-toggle" onClick={() => setDev((d) => !d)}
+              className={`px-4 py-2 rounded-full text-[11px] font-mono border transition ${dev ? 'bg-white text-black border-white' : 'text-white/80 border-white/20 hover:border-white/50'}`}>
+              {'</>'} Developer
+            </button>
+          </div>
+        </div>
+        <div className="flex flex-wrap justify-center gap-20 px-6 pt-4">
+          {(Object.keys(TIER_META) as Tier[]).map((t) => (
+            <Handset key={t} tier={t} {...TIER_META[t]} mood={mood} theme={theme} lib={lib} />
           ))}
         </div>
       </div>
-      <div className="flex flex-wrap justify-center gap-20 px-6 pt-4">
-        <Handset tier="economy" label="Economy" tagline="Max legibility · zero graphics · low power" mood={mood} theme={theme} />
-        <Handset tier="premium" label="Premium Economy" tagline="Artwork · tint · animated feedback" mood={mood} theme={theme} />
-        <Handset tier="business" label="Business" tagline="Living gradients on every surface" mood={mood} theme={theme} />
-      </div>
+      <AnimatePresence>
+        {dev && (
+          <motion.aside key="dev" initial={{ x: 40, opacity: 0 }} animate={{ x: 0, opacity: 1 }} exit={{ x: 40, opacity: 0 }}
+            className="w-[440px] shrink-0 h-full border-l border-white/10 bg-[#0b0c10]/95 backdrop-blur-xl">
+            <DevPanel theme={theme} setTheme={setTheme} lib={lib} setLib={setLib} mood={mood}
+              onReset={() => { setTheme(DEFAULT_THEME); setLib(LIBRARY); }} onClose={() => setDev(false)} />
+          </motion.aside>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
