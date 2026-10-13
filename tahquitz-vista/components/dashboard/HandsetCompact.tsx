@@ -54,13 +54,105 @@ const fmt = (s: number) => {
 };
 
 type OsdK = 'vol' | 'seek' | 'play' | 'sent' | 'sleep' | 'light';
+export type Mood = 'auto' | 'day' | 'sunset' | 'night' | 'dark';
+const resolveMood = (m: Mood): Exclude<Mood, 'auto'> => {
+  if (m !== 'auto') return m;
+  const hr = new Date().getHours();
+  return hr >= 6 && hr < 17 ? 'day' : hr >= 17 && hr < 20 ? 'sunset' : 'night';
+};
+// Logo palette per cabin mood: [from, to] hues + lightness
+const MOOD_STYLE: Record<Exclude<Mood, 'auto'>, { a: number; b: number; l: number; label: string }> = {
+  day: { a: 190, b: 45, l: 70, label: 'Day' },
+  sunset: { a: 20, b: 330, l: 66, label: 'Sunset' },
+  night: { a: 250, b: 200, l: 68, label: 'Night' },
+  dark: { a: 0, b: 25, l: 45, label: 'Cabin dark' }, // red/amber keeps night vision
+};
+
+/* ---------- Airline mark, rendered by the display (lower-left) ---------- */
+function AirlineLogo({ tier, mood, asleep, light }: { tier: Tier; mood: Exclude<Mood, 'auto'>; asleep: boolean; light: boolean }) {
+  const s = MOOD_STYLE[mood];
+  const dim = asleep ? 0.25 : mood === 'dark' ? 0.55 : 1;
+  const id = `lg-${tier}`;
+  const mono = tier === 'economy';
+  return (
+    <motion.div className="absolute z-40 left-[9px] top-[444px] w-[48px] flex flex-col items-center pointer-events-none"
+      animate={{ opacity: mono ? (mood === 'night' || mood === 'dark' || asleep ? 0.35 : 0.7) : asleep ? [0.15, 0.35, 0.15] : dim }}
+      transition={asleep ? { duration: 4, repeat: Infinity } : { duration: 1.2 }}>
+      {light && !mono && (
+        <motion.span className="absolute -inset-2 rounded-full blur-md" initial={{ opacity: 0 }} animate={{ opacity: 0.6 }}
+          style={{ background: 'radial-gradient(circle, rgba(255,200,130,.6), transparent 70%)' }} />
+      )}
+      <svg viewBox="0 0 32 24" width="34" height="26" className="relative overflow-visible">
+        <defs>
+          <linearGradient id={id} x1="0" y1="0" x2="1" y2="1">
+            <motion.stop offset="0%" animate={{ stopColor: mono ? '#fff' : `hsl(${s.a} 80% ${s.l}%)` }} transition={{ duration: 1.5 }} />
+            <motion.stop offset="100%" animate={{ stopColor: mono ? '#fff' : `hsl(${s.b} 85% ${s.l}%)` }} transition={{ duration: 1.5 }} />
+          </linearGradient>
+          {tier === 'business' && (
+            <linearGradient id={`${id}-sh`} x1="0" x2="1">
+              <stop offset="0%" stopColor="white" stopOpacity="0" />
+              <stop offset="50%" stopColor="white" stopOpacity=".8" />
+              <stop offset="100%" stopColor="white" stopOpacity="0" />
+            </linearGradient>
+          )}
+          <clipPath id={`${id}-clip`}><path d="M1 21 L11 5 L16 13 L19.5 8 L31 21 Z" /></clipPath>
+        </defs>
+        {/* Tahquitz peak + wing swoosh */}
+        <path d="M1 21 L11 5 L16 13 L19.5 8 L31 21 Z" fill={`url(#${id})`} />
+        <motion.path d="M0 19 Q14 12 32 15" stroke={`url(#${id})`} strokeWidth="1.6" fill="none" strokeLinecap="round"
+          animate={tier === 'business' && !asleep ? { pathLength: [0.2, 1, 1], opacity: [0.4, 1, 0.4] } : { pathLength: 1 }}
+          transition={{ duration: 5, repeat: Infinity, ease: 'easeInOut' }} />
+        {tier === 'business' && !asleep && (
+          <g clipPath={`url(#${id}-clip)`}>
+            <motion.rect y="0" width="10" height="24" fill={`url(#${id}-sh)`} animate={{ x: [-12, 34] }} transition={{ duration: 3.5, repeat: Infinity, repeatDelay: 2.5, ease: 'easeInOut' }} />
+          </g>
+        )}
+        {mood === 'night' && !mono && !asleep && [[4, 3], [26, 4], [29, 9]].map(([x, y], i) => (
+          <motion.circle key={i} cx={x} cy={y} r=".9" fill="white" animate={{ opacity: [0.1, 1, 0.1] }} transition={{ duration: 2.4, delay: i * 0.7, repeat: Infinity }} />
+        ))}
+      </svg>
+      <span className="relative text-[7px] font-semibold tracking-[.25em] mt-0.5" style={{ color: mono ? '#fff' : `hsl(${s.a} 60% ${s.l + 10}%)`, transition: 'color 1.5s' }}>TAHQUITZ</span>
+    </motion.div>
+  );
+}
+
+/* ---------- Realistic music visualizer (smoothed spectrum, beat-weighted) ---------- */
+function MusicBars({ playing, hue, gradient }: { playing: boolean; hue: number; gradient: boolean }) {
+  const N = 28;
+  const [lv, setLv] = useState<number[]>(() => Array(N).fill(0.05));
+  const ph = useRef(0);
+  useEffect(() => {
+    const start = performance.now();
+    const id = setInterval(() => {
+      ph.current += 0.09;
+      const t = ph.current;
+      const beat = Math.exp(-(((performance.now() - start) % 600) / 600) * 6);
+      const env = 0.6 + 0.25 * Math.sin(t * 0.33) + 0.1 * Math.sin(t * 1.4);
+      setLv((p) => p.map((v, i) => {
+        if (!playing) return v * 0.85;
+        const f = i / N;
+        const tgt = Math.min(1, env * (1 - f * 0.65) * (0.4 + 0.6 * (0.5 + 0.5 * Math.sin(t * (1.2 + f * 3) + i * 0.8))) * (0.85 + Math.random() * 0.3) + (f < 0.25 ? beat * 0.35 : 0));
+        return v + (tgt - v) * (tgt > v ? 0.5 : 0.16);
+      }));
+    }, 80);
+    return () => clearInterval(id);
+  }, [playing]);
+  return (
+    <div className="flex items-end gap-[2px] h-9 mt-2">
+      {lv.map((v, i) => (
+        <div key={i} className="flex-1 rounded-full" style={{ height: `${Math.max(6, v * 100)}%`, transition: 'height 80ms linear',
+          background: gradient ? `linear-gradient(to top, hsl(${hue + (i / N) * 150} 85% 62%), hsl(${hue + (i / N) * 150 + 40} 85% 75% / .35))` : `hsl(${hue} 55% 72% / .6)` }} />
+      ))}
+    </div>
+  );
+}
 
 /* =========================================================
    Engine
    ========================================================= */
-function useHandset() {
-  const [playing, setPlaying] = useState<Item>(LIBRARY.Movies[0]);
-  const [pos, setPos] = useState(2710);
+function useHandset(initial: Item = LIBRARY.Movies[0]) {
+  const [playing, setPlaying] = useState<Item>(initial);
+  const [pos, setPos] = useState(initial.kind === 'Music' ? 52 : 2710);
   const [isPlaying, setIsPlaying] = useState(true);
   const [volume, setVolume] = useState(6);
   const [menu, setMenu] = useState(false);
@@ -204,8 +296,15 @@ function Glass({ tier, hue, shape, style, children, onPress, onHold, label, unde
 /* =========================================================
    One handset
    ========================================================= */
-function Handset({ tier, label, tagline }: { tier: Tier; label: string; tagline: string }) {
-  const h = useHandset();
+function Handset({ tier, label, tagline, mood }: { tier: Tier; label: string; tagline: string; mood: Mood }) {
+  const h = useHandset(tier === 'economy' ? LIBRARY.Movies[0] : LIBRARY.Music[tier === 'business' ? 1 : 0]);
+  const m = resolveMood(mood);
+  // Liquid volume: remember direction of last change so the surface can slosh
+  const prevVol = useRef(h.volume);
+  const [slosh, setSlosh] = useState({ d: 0, n: 0 });
+  useEffect(() => {
+    if (h.volume !== prevVol.current) { setSlosh({ d: Math.sign(h.volume - prevVol.current), n: Date.now() }); prevVol.current = h.volume; }
+  }, [h.volume]);
   const hue = h.playing.hue;
   const pct = h.pos / h.playing.duration;
   const chapter = h.playing.chapters[Math.min(h.playing.chapters.length - 1, Math.floor(pct * h.playing.chapters.length))];
@@ -282,7 +381,7 @@ function Handset({ tier, label, tagline }: { tier: Tier; label: string; tagline:
               <span>32C</span>
               <span className="flex items-center gap-1.5">
                 {SLEEP_STEPS[h.sleepStep] > 0 && <span>☾ {SLEEP_STEPS[h.sleepStep]}m</span>}
-                {h.light && <span>💡</span>}
+                {h.light && <span className="text-amber-300">☀</span>}
                 <span>{h.menu ? 'Browse' : 'Seatback'}</span>
               </span>
             </div>
@@ -316,6 +415,7 @@ function Handset({ tier, label, tagline }: { tier: Tier; label: string; tagline:
                             backgroundSize: '200% 100%' }} />
                       </div>
                       <div className="flex justify-between text-[11px] text-white/55 font-mono mt-1"><span>{fmt(h.pos)}</span><span>-{fmt(h.playing.duration - h.pos)}</span></div>
+                      {h.playing.kind === 'Music' && <MusicBars playing={h.isPlaying} hue={hue} gradient={tier === 'business'} />}
                     </div>
                   )}
                 </motion.div>
@@ -372,11 +472,27 @@ function Handset({ tier, label, tagline }: { tier: Tier; label: string; tagline:
           {/* Lower-left ancillary: LIGHT */}
           <Glass tier={tier} hue={hue} shape="squircle" label="Reading light" onPress={h.lightKey}
             style={{ left: 10, top: 372, width: 46, height: 62 }}
-            under={h.light && tier !== 'economy' ? <motion.div className="absolute inset-0" animate={{ opacity: [0.5, 0.8, 0.5] }} transition={{ duration: 3, repeat: Infinity }}
-              style={{ background: 'radial-gradient(circle, rgba(255,200,120,.55), transparent 70%)' }} /> : undefined}>
-            <span className={`text-[18px] leading-none ${h.light ? '' : 'grayscale opacity-70'}`}>💡</span>
-            <span className="text-[9px] text-white/60 mt-1">{h.light ? 'On' : 'Light'}</span>
+            under={h.light && tier !== 'economy' ? <motion.div className="absolute inset-0" animate={{ opacity: [0.55, 0.9, 0.55] }} transition={{ duration: 2.6, repeat: Infinity }}
+              style={{ background: 'radial-gradient(circle at 50% 40%, rgba(255,205,120,.7), rgba(255,150,60,.15) 55%, transparent 75%)' }} /> : undefined}>
+            <svg viewBox="-12 -12 24 24" width="30" height="30" className="overflow-visible"
+              style={{ filter: h.light ? 'drop-shadow(0 0 6px rgba(255,200,110,.95))' : 'none', transition: 'filter .4s' }}>
+              {/* rays */}
+              <motion.g animate={h.light ? { rotate: 360, opacity: 1, scale: [1, 1.12, 1] } : { opacity: 0, scale: 0.6 }}
+                transition={h.light ? { rotate: { duration: 14, repeat: Infinity, ease: 'linear' }, scale: { duration: 1.8, repeat: Infinity }, opacity: { duration: 0.3 } } : { duration: 0.2 }}>
+                {Array.from({ length: 8 }).map((_, i) => (
+                  <line key={i} x1="0" y1="-8.5" x2="0" y2="-11" stroke="#ffd27a" strokeWidth="1.4" strokeLinecap="round" transform={`rotate(${i * 45})`} />
+                ))}
+              </motion.g>
+              {/* bulb */}
+              <path d="M0 -6.5 a4.6 4.6 0 0 1 2.9 8.2 c-.6.5-.9 1.1-.9 1.8 v.8 h-4 v-.8 c0-.7-.3-1.3-.9-1.8 A4.6 4.6 0 0 1 0 -6.5z"
+                fill={h.light ? '#ffe2a3' : 'none'} stroke={h.light ? '#ffd27a' : 'rgba(255,255,255,.6)'} strokeWidth="1.2" />
+              <path d="M-1.8 5.6 h3.6 M-1.3 7.2 h2.6" stroke={h.light ? '#ffd27a' : 'rgba(255,255,255,.6)'} strokeWidth="1.1" strokeLinecap="round" />
+            </svg>
+            <span className={`text-[9px] mt-0.5 ${h.light ? 'text-amber-200' : 'text-white/60'}`}>{h.light ? 'On' : 'Light'}</span>
           </Glass>
+
+          {/* Airline mark (display-rendered, mood-reactive) */}
+          <AirlineLogo tier={tier} mood={m} asleep={h.asleep} light={h.light} />
 
           {/* ORB: play / pause / select */}
           <Glass tier={tier} hue={hue} shape="orb" label={h.menu ? 'Play on screen' : 'Play / Pause'} onPress={h.orb}
@@ -420,16 +536,30 @@ function Handset({ tier, label, tagline }: { tier: Tier; label: string; tagline:
             onPress={(e) => { const r = e.currentTarget.getBoundingClientRect(); h.vol(e.clientY - r.top < r.height / 2 ? 1 : -1); }}
             style={{ left: 146, top: 288, width: 44, height: 196 }}
             under={!h.menu ? (
-              <motion.div className="absolute inset-x-0 bottom-0" animate={{ height: `${h.volume * 10}%` }} transition={{ type: 'spring', stiffness: 160, damping: 18 }}
+              <motion.div className="absolute inset-x-0 bottom-0" animate={{ height: `${h.volume * 10}%` }}
+                transition={tier === 'economy' ? { duration: 0.15 } : { type: 'spring', stiffness: 90, damping: 7, mass: 0.9 }}
                 style={{ background: tier === 'economy' ? 'rgba(255,255,255,.22)'
-                  : tier === 'premium' ? `linear-gradient(to top, hsl(${hue} 60% 55% / .7), hsl(${hue} 60% 70% / .25))`
+                  : tier === 'premium' ? `linear-gradient(to top, hsl(${hue} 60% 50% / .8), hsl(${hue} 65% 68% / .35))`
                   : `linear-gradient(to top, hsl(${hue} 85% 55%), hsl(${hue + 60} 85% 62%), hsl(${hue + 150} 85% 70% / .6))` }}>
-                {tier === 'business' && (
-                  <motion.svg viewBox="0 0 44 8" preserveAspectRatio="none" className="absolute -top-[6px] left-0 w-[200%] h-2"
-                    animate={{ x: ['0%', '-50%'] }} transition={{ duration: 2, repeat: Infinity, ease: 'linear' }}>
-                    <path d="M0 4 Q5.5 0 11 4 T22 4 T33 4 T44 4 V8 H0Z" fill={`hsl(${hue + 150} 85% 70% / .6)`} />
-                  </motion.svg>
+                {tier !== 'economy' && (
+                  /* surface: two offset waves that slosh toward the direction of change */
+                  <motion.div key={slosh.n} className="absolute -top-[9px] left-0 w-full h-[12px] overflow-visible"
+                    initial={{ skewY: slosh.d * -14, y: slosh.d * -4 }} animate={{ skewY: [slosh.d * -14, slosh.d * 9, slosh.d * -4, 0], y: [slosh.d * -4, slosh.d * 2, 0] }}
+                    transition={{ duration: 1.1, ease: 'easeOut' }}>
+                    <motion.svg viewBox="0 0 44 10" preserveAspectRatio="none" className="absolute inset-0 w-[200%] h-full"
+                      animate={{ x: ['0%', '-50%'] }} transition={{ duration: 2.4, repeat: Infinity, ease: 'linear' }}>
+                      <path d="M0 5 Q5.5 0 11 5 T22 5 T33 5 T44 5 V10 H0Z" fill={tier === 'business' ? `hsl(${hue + 150} 85% 70% / .65)` : `hsl(${hue} 65% 68% / .5)`} />
+                    </motion.svg>
+                    <motion.svg viewBox="0 0 44 10" preserveAspectRatio="none" className="absolute inset-0 w-[200%] h-full"
+                      animate={{ x: ['-50%', '0%'] }} transition={{ duration: 3.6, repeat: Infinity, ease: 'linear' }}>
+                      <path d="M0 6 Q5.5 2 11 6 T22 6 T33 6 T44 6 V10 H0Z" fill={tier === 'business' ? `hsl(${hue + 60} 85% 65% / .55)` : `hsl(${hue} 60% 55% / .45)`} />
+                    </motion.svg>
+                  </motion.div>
                 )}
+                {tier === 'business' && Array.from({ length: 6 }).map((_, i) => (
+                  <motion.span key={i} className="absolute bottom-0 rounded-full bg-white/60" style={{ left: `${15 + ((i * 29) % 70)}%`, width: 2 + (i % 3), height: 2 + (i % 3) }}
+                    animate={{ y: [0, -120], opacity: [0, 0.8, 0], x: [0, i % 2 ? 3 : -3, 0] }} transition={{ duration: 2.5 + (i % 3), delay: i * 0.6, repeat: Infinity, ease: 'easeOut' }} />
+                ))}
               </motion.div>
             ) : undefined}>
             <span className="absolute top-3 text-[20px] leading-none">{h.menu ? '▲' : '+'}</span>
@@ -506,6 +636,8 @@ function Handset({ tier, label, tagline }: { tier: Tier; label: string; tagline:
 }
 
 export default function HandsetCompact() {
+  const [mood, setMood] = useState<Mood>('auto');
+  const opts: [Mood, string][] = [['auto', 'Auto (clock)'], ['day', '☀ Day'], ['sunset', '🌅 Sunset'], ['night', '🌙 Night'], ['dark', '🔴 Cabin dark']];
   return (
     <div className="w-full h-full overflow-auto flex flex-col items-center pt-16 pb-24 gap-6">
       <div className="text-center max-w-2xl px-4">
@@ -515,11 +647,18 @@ export default function HandsetCompact() {
           Keys are shaped so they can be found by feel; legends are drawn by the display beneath the glass.
           <br />Keyboard: ↑↓ volume · ←→ scrub · Enter orb · <b className="text-white/80">M</b> menu · <b className="text-white/80">L</b> light · <b className="text-white/80">P</b> sleep timer · <b className="text-white/80">S</b> sleep · <b className="text-white/80">C</b> call
         </p>
+        <div className="inline-flex items-center gap-1 mt-3 rounded-full bg-black/40 border border-white/10 p-1">
+          <span className="text-[10px] uppercase tracking-widest text-white/40 px-2">Cabin mood</span>
+          {opts.map(([v, l]) => (
+            <button key={v} id={`mood-${v}`} onClick={() => setMood(v)}
+              className={`px-3 py-1.5 rounded-full text-[11px] ${mood === v ? 'bg-white text-black' : 'text-white/70 hover:text-white'}`}>{l}</button>
+          ))}
+        </div>
       </div>
       <div className="flex flex-wrap justify-center gap-20 px-6 pt-4">
-        <Handset tier="economy" label="Economy" tagline="Max legibility · zero graphics · low power" />
-        <Handset tier="premium" label="Premium Economy" tagline="Artwork · tint · animated feedback" />
-        <Handset tier="business" label="Business" tagline="Living gradients on every surface" />
+        <Handset tier="economy" label="Economy" tagline="Max legibility · zero graphics · low power" mood={mood} />
+        <Handset tier="premium" label="Premium Economy" tagline="Artwork · tint · animated feedback" mood={mood} />
+        <Handset tier="business" label="Business" tagline="Living gradients on every surface" mood={mood} />
       </div>
     </div>
   );
