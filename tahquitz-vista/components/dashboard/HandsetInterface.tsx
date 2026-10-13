@@ -2,6 +2,7 @@
 
 import React, { useEffect, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import Explore from './HandsetExtras';
 
 /* =========================================================
    Demo catalogue (fictional artists, generated cover art)
@@ -81,7 +82,7 @@ const TRACKS: Track[] = [
 ];
 
 const SOURCES = ['Cabin Audio', 'Moving Map', 'Movie Ch. 1', 'Satellite Radio'];
-const TABS = ['Now Playing', 'Lyrics', 'Artist', 'Up Next', 'Flight'] as const;
+const TABS = ['Now Playing', 'Lyrics', 'Artist', 'Up Next', 'Flight', 'Explore'] as const;
 type Tab = typeof TABS[number];
 
 const fmt = (s: number) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
@@ -154,7 +155,7 @@ function Visualizer({ playing, hue, energy, bpm, bars = 40, className = '' }: {
         const spectral = 1 - f * 0.7;
         const shimmer = 0.5 + 0.5 * Math.sin(t * (1.1 + f * 3.2) + i * 0.8);
         const bass = f < 0.2 ? kick * 0.45 : kick * 0.08;
-        const target = Math.min(1, e * spectral * (0.3 + 0.55 * shimmer) * (0.85 + Math.random() * 0.3) + bass * e);
+        const target = Math.min(1, Math.min(1, e * 1.35) * spectral * (0.45 + 0.55 * shimmer) * (0.85 + Math.random() * 0.3) + bass * e);
         return v + (target - v) * (target > v ? 0.5 : 0.16);
       }));
     }, 80);
@@ -224,14 +225,14 @@ function ProgressBar({ p, hue }: { p: Playback; hue: number }) {
 /* =========================================================
    Screen panels
    ========================================================= */
-function NowPlaying({ p, hue }: { p: Playback; hue: number }) {
+function NowPlaying({ p, hue, portrait = false }: { p: Playback; hue: number; portrait?: boolean }) {
   const sec = sectionAt(p.track, p.position);
   const liked = p.liked.has(p.trackIdx);
   return (
     <AnimatePresence mode="wait">
       <motion.div key={p.trackIdx} initial={{ opacity: 0, x: 24 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -24 }}
-        transition={{ duration: 0.35 }} className="flex items-center gap-4 h-full">
-        <motion.div className="relative w-28 h-28 flex-shrink-0 rounded-xl overflow-hidden"
+        transition={{ duration: 0.35 }} className={`flex h-full ${portrait ? 'flex-col items-center justify-center text-center gap-3' : 'items-center gap-4'}`}>
+        <motion.div className={`relative ${portrait ? 'w-48 h-48' : 'w-28 h-28'} flex-shrink-0 rounded-xl overflow-hidden`}
           style={{ boxShadow: `0 12px 30px hsl(${hue} 60% 20% / .7), 0 0 0 1px rgba(255,255,255,.08)` }}
           animate={{ scale: p.isPlaying ? 1 : 0.94 }} transition={{ type: 'spring', stiffness: 200, damping: 20 }}>
           <motion.img src={p.track.cover} alt={`${p.track.album} cover`} className="w-full h-full object-cover"
@@ -427,11 +428,17 @@ const Icon = {
 /* =========================================================
    HARD KEY VARIANT
    ========================================================= */
-function HardKeyHandset() {
+function HardKeyHandset({ portrait = false }: { portrait?: boolean }) {
   const p = usePlayback();
   const [tab, setTab] = useState<Tab>('Now Playing');
   const [osd, setOsd] = useState<OSD>(null);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [announcing, setAnnouncing] = useState(false);
+  const [wakeUp, setWakeUp] = useState<number | null>(null);
+  const [together, setTogether] = useState<string | null>(null);
+  const announce = () => { setAnnouncing(true); setTimeout(() => setAnnouncing(false), 6000); };
+  // A realistic surprise: the crew makes a PA about a minute into the demo
+  useEffect(() => { const id = setTimeout(announce, 60000); return () => clearTimeout(id); }, []);
 
   const show = (kind: NonNullable<OSD>['kind']) => {
     setOsd({ kind, key: Date.now() });
@@ -444,9 +451,15 @@ function HardKeyHandset() {
   const sec = sectionAt(p.track, p.position);
 
   return (
-    <div className="w-full h-full flex items-center justify-center p-4 overflow-hidden">
-      <div className="relative w-full max-w-[900px] aspect-[2.1/1] rounded-[36px] p-5 overflow-hidden bg-black
-        ring-[6px] ring-[#1b1c20] shadow-[0_30px_60px_rgba(0,0,0,.7)] flex gap-5">
+    <div className="w-full h-full flex items-center justify-center p-4 pt-14 overflow-hidden">
+      <motion.div layout transition={{ type: 'spring', stiffness: 160, damping: 24 }}
+        className={`relative overflow-hidden bg-black ring-[6px] ring-[#1b1c20] shadow-[0_30px_60px_rgba(0,0,0,.7)] grid
+          ${portrait ? 'h-full max-h-[820px] aspect-[9/17] rounded-[44px] p-4 gap-4' : 'w-full max-w-[900px] aspect-[2.1/1] rounded-[36px] p-5 gap-5'}`}
+        style={portrait
+          // Right-handed thumb: pivot sits bottom-right. Play/skip in the natural arc,
+          // volume as a vertical strip on the right edge, Call top-left of the key zone (deliberate reach = fewer accidental calls).
+          ? { gridTemplateAreas: '"screen screen" "transport vol"', gridTemplateColumns: '1fr auto', gridTemplateRows: '1fr auto' }
+          : { gridTemplateAreas: '"vol screen transport"', gridTemplateColumns: 'auto minmax(0,1fr) auto', gridTemplateRows: '1fr' }}>
         {/* Ambient backdrop tinted by the album art */}
         <div className="absolute inset-0 pointer-events-none" style={{ background: `linear-gradient(135deg, hsl(${hue} 35% 14%), hsl(${hue + 40} 30% 10%) 55%, hsl(${hue - 30} 30% 12%))`, transition: 'background 2s ease' }} />
         <AnimatePresence>
@@ -465,7 +478,7 @@ function HardKeyHandset() {
         <div className="absolute inset-0 pointer-events-none rounded-[36px] bg-gradient-to-br from-white/[0.08] via-transparent to-transparent z-30" />
 
         {/* Left keys: volume */}
-        <div className="relative z-10 flex flex-col justify-center items-center gap-2">
+        <div className="relative z-10 flex flex-col justify-center items-center gap-2" style={{ gridArea: 'vol' }}>
           <HardKey id="hk-vol-up" label="Volume up" glow={`hsl(${hue} 60% 70%)`} onPress={() => { p.setVolume((v) => Math.min(100, v + 5)); show('volume'); }}
             under={<motion.div className="absolute inset-x-0 bottom-0" animate={{ height: `${Math.max(0, p.volume - 50) * 2}%` }}
               style={{ background: `linear-gradient(to top, hsl(${hue} 50% 60% / .7), hsl(${hue} 50% 75% / .35))` }} />}>{Icon.plus}</HardKey>
@@ -481,20 +494,24 @@ function HardKeyHandset() {
         </div>
 
         {/* Center display */}
-        <div className="relative z-10 flex-1 min-w-0 rounded-2xl overflow-hidden">
+        <div className="relative z-10 min-w-0 min-h-0 rounded-2xl overflow-hidden" style={{ gridArea: 'screen' }}>
           <div className="relative h-full flex flex-col p-3 gap-2">
             {/* Tab bar */}
-            <div className="flex items-center justify-between gap-2">
-              <div className="flex gap-0.5 rounded-full bg-black/25 p-0.5">
+            <div className={`flex ${portrait ? 'flex-col-reverse items-stretch' : 'items-center justify-between'} gap-2`}>
+              <div className="flex gap-0.5 rounded-full bg-black/30 p-1 overflow-x-auto [scrollbar-width:none]">
                 {TABS.map((t) => (
                   <button key={t} id={`handset-tab-${t.replace(' ', '-').toLowerCase()}`} onClick={() => setTab(t)}
-                    className="relative px-2 py-0.5 text-[9px] uppercase tracking-wider rounded-full">
+                    className="relative px-3 py-1.5 text-[11px] font-medium uppercase tracking-wider rounded-full whitespace-nowrap">
                     {tab === t && <motion.span layoutId="handset-tab-pill" className="absolute inset-0 rounded-full bg-white/90" transition={{ type: 'spring', stiffness: 400, damping: 30 }} />}
                     <span className={`relative ${tab === t ? 'text-black' : 'text-white/55'}`}>{t}</span>
                   </button>
                 ))}
               </div>
-              <span className="text-[9px] uppercase tracking-[.2em] text-white/40 whitespace-nowrap">{SOURCES[p.source]} · 4A</span>
+              <span className="text-[9px] uppercase tracking-[.2em] text-white/40 whitespace-nowrap">
+                {together && <span className="text-emerald-300 mr-1">● {together}</span>}
+                {wakeUp && <span className="mr-1">⏰</span>}
+                {SOURCES[p.source]} · 4A
+              </span>
             </div>
 
             {/* Panel */}
@@ -502,11 +519,15 @@ function HardKeyHandset() {
               <AnimatePresence mode="wait">
                 <motion.div key={tab} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }}
                   transition={{ duration: 0.22 }} className="absolute inset-0">
-                  {tab === 'Now Playing' && <NowPlaying p={p} hue={hue} />}
+                  {tab === 'Now Playing' && <NowPlaying p={p} hue={hue} portrait={portrait} />}
                   {tab === 'Lyrics' && <Lyrics p={p} hue={hue} />}
                   {tab === 'Artist' && <Artist p={p} hue={hue} />}
                   {tab === 'Up Next' && <UpNext p={p} />}
                   {tab === 'Flight' && <Flight p={p} hue={hue} />}
+                  {tab === 'Explore' && (
+                    <Explore hue={hue} tracks={TRACKS} liked={p.liked} currentIdx={p.trackIdx} goTo={(i) => { p.goTo(i); setTab('Now Playing'); }}
+                      onAnnounce={announce} wakeUp={wakeUp} setWakeUp={setWakeUp} together={together} setTogether={setTogether} />
+                  )}
                 </motion.div>
               </AnimatePresence>
             </div>
@@ -520,9 +541,26 @@ function HardKeyHandset() {
               </div>
             )}
 
-            <Visualizer playing={p.isPlaying} hue={hue} energy={sec.energy} bpm={p.track.bpm} className="h-6" />
+            <Visualizer playing={p.isPlaying} hue={hue} energy={announcing ? sec.energy * 0.25 : sec.energy} bpm={p.track.bpm} className={portrait ? 'h-20' : 'h-12'} />
             <ProgressBar p={p} hue={hue} />
           </div>
+
+          {/* Crew announcement: music ducks, banner slides down */}
+          <AnimatePresence>
+            {announcing && (
+              <motion.div initial={{ y: '-110%' }} animate={{ y: 0 }} exit={{ y: '-110%' }} transition={{ type: 'spring', stiffness: 260, damping: 28 }}
+                className="absolute top-2 inset-x-2 z-20 rounded-xl bg-amber-400/90 text-black px-3 py-2 flex items-center gap-3 shadow-xl">
+                <motion.span animate={{ scale: [1, 1.2, 1] }} transition={{ duration: 1, repeat: Infinity }}>📢</motion.span>
+                <div className="min-w-0 flex-1">
+                  <p className="text-[11px] font-semibold">Cabin Announcement</p>
+                  <p className="text-[10px] truncate">We're beginning our dinner service. Your music is lowered and will resume shortly.</p>
+                </div>
+                <div className="flex items-end gap-[2px] h-4">
+                  {[0, 1, 2, 3].map((i) => <motion.span key={i} className="w-[3px] bg-black/70 rounded" animate={{ height: ['30%', '100%', '40%'] }} transition={{ duration: 0.5, repeat: Infinity, delay: i * 0.1 }} />)}
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
 
           {/* On-screen display overlays */}
           <AnimatePresence>
@@ -588,13 +626,14 @@ function HardKeyHandset() {
           </AnimatePresence>
         </div>
 
-        {/* Right keys: transport + call */}
-        <div className="relative z-10 flex flex-col justify-center gap-3">
-          <div className="flex gap-3">
-            <HardKey id="hk-prev" label="Previous" onPress={() => { p.prev(); show('track'); }}>{Icon.prev}</HardKey>
-            <HardKey id="hk-next" label="Next" onPress={() => { p.next(); show('track'); }}>{Icon.next}</HardKey>
-          </div>
-          <div className="flex gap-3">
+        {/* Transport + call keys */}
+        <div className="relative z-10 grid gap-3 self-center justify-self-center" style={{
+          gridArea: 'transport',
+          gridTemplateAreas: portrait ? '"call call src" "prev play next"' : '"prev next" "play src" "call call"',
+        }}>
+          <div style={{ gridArea: 'prev' }}><HardKey id="hk-prev" label="Previous" onPress={() => { p.prev(); show('track'); }}>{Icon.prev}</HardKey></div>
+          <div style={{ gridArea: 'next' }}><HardKey id="hk-next" label="Next" onPress={() => { p.next(); show('track'); }}>{Icon.next}</HardKey></div>
+          <div style={{ gridArea: 'play' }}>
             <HardKey id="hk-play" label="Play/Pause" glow={`hsl(${hue} 60% 75%)`} onPress={() => { p.setIsPlaying((v) => !v); show('play'); }}
               under={<>
                 <img src={p.track.cover} alt="" className="absolute inset-0 w-full h-full object-cover opacity-40" />
@@ -606,11 +645,14 @@ function HardKeyHandset() {
               </>}>
               {p.isPlaying ? Icon.pause : Icon.play}
             </HardKey>
+          </div>
+          <div style={{ gridArea: 'src' }}>
             <HardKey id="hk-source" label="Source" onPress={() => { p.setSource((s) => (s + 1) % SOURCES.length); show('source'); }}
               under={<div className="absolute bottom-1.5 inset-x-0 flex justify-center gap-1">
                 {SOURCES.map((_, i) => <motion.span key={i} className="h-1 rounded-full bg-white" animate={{ width: i === p.source ? 10 : 4, opacity: i === p.source ? 1 : 0.3 }} />)}
               </div>}>{Icon.src}</HardKey>
           </div>
+          <div style={{ gridArea: 'call' }}>
           <HardKey id="hk-call" label="Call attendant" wide glow="rgba(56,189,248,.9)" onPress={() => { p.setCallActive((c) => !c); show('call'); }}
             under={p.callActive ? <>
               <motion.div className="absolute inset-0 bg-sky-500/40" animate={{ opacity: [0.3, 0.9, 0.3] }} transition={{ duration: 1.2, repeat: Infinity }} />
@@ -621,8 +663,9 @@ function HardKeyHandset() {
             </> : <div className="absolute inset-0 bg-sky-500/10" />}>
             <span className="flex items-center gap-2 text-[10px] uppercase tracking-widest">{Icon.bell}{p.callActive ? 'Calling' : 'Call'}</span>
           </HardKey>
+          </div>
         </div>
-      </div>
+      </motion.div>
     </div>
   );
 }
@@ -669,17 +712,37 @@ function TouchHandset() {
 
 export default function HandsetInterface() {
   const [variant, setVariant] = useState<'hardkey' | 'touch'>('hardkey');
+  const [orient, setOrient] = useState<'auto' | 'landscape' | 'portrait'>('auto');
+  const [devicePortrait, setDevicePortrait] = useState(false);
+  useEffect(() => {
+    const mq = window.matchMedia('(orientation: portrait)');
+    const on = () => setDevicePortrait(mq.matches);
+    on(); mq.addEventListener('change', on);
+    return () => mq.removeEventListener('change', on);
+  }, []);
+  const portrait = orient === 'portrait' || (orient === 'auto' && devicePortrait);
+
+  const Seg = <T extends string>({ value, set, opts }: { value: T; set: (v: T) => void; opts: [T, string][] }) => (
+    <div className="flex rounded-full bg-black/50 backdrop-blur border border-white/15 p-1">
+      {opts.map(([v, l]) => (
+        <button key={v} id={`handset-opt-${v}`} onClick={() => set(v)}
+          className="relative px-4 py-2 rounded-full text-xs font-medium uppercase tracking-wider">
+          {value === v && <motion.span layoutId={`seg-${opts[0][0]}`} className="absolute inset-0 rounded-full bg-white" />}
+          <span className={`relative ${value === v ? 'text-black' : 'text-white/70'}`}>{l}</span>
+        </button>
+      ))}
+    </div>
+  );
+
   return (
     <div className="relative w-full h-full">
-      <div className="absolute top-2 right-2 z-20 flex rounded-full bg-black/40 border border-white/10 p-0.5 text-[10px] uppercase tracking-widest">
-        {(['hardkey', 'touch'] as const).map((v) => (
-          <button key={v} id={`handset-variant-${v}`} onClick={() => setVariant(v)}
-            className={`px-3 py-1 rounded-full transition-colors ${variant === v ? 'bg-white text-black' : 'text-white/60 hover:text-white'}`}>
-            {v === 'hardkey' ? 'Hard Keys' : 'Touch'}
-          </button>
-        ))}
+      <div className="absolute top-2 right-3 z-40 flex gap-2">
+        {variant === 'hardkey' && (
+          <Seg value={orient} set={setOrient} opts={[['auto', '⟳ Auto'], ['landscape', '▭ Landscape'], ['portrait', '▯ Portrait']]} />
+        )}
+        <Seg value={variant} set={setVariant} opts={[['hardkey', 'Hard Keys'], ['touch', 'Touch']]} />
       </div>
-      {variant === 'hardkey' ? <HardKeyHandset /> : <TouchHandset />}
+      {variant === 'hardkey' ? <HardKeyHandset portrait={portrait} /> : <TouchHandset />}
     </div>
   );
 }
