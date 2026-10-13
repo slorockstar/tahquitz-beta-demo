@@ -3,6 +3,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import Explore from './HandsetExtras';
+import HandsetCompact from './HandsetCompact';
 
 /* =========================================================
    Demo catalogue (fictional artists, generated cover art)
@@ -711,7 +712,7 @@ function TouchHandset() {
 }
 
 export default function HandsetInterface() {
-  const [variant, setVariant] = useState<'hardkey' | 'touch'>('hardkey');
+  const [variant, setVariant] = useState<'compact' | 'hardkey' | 'touch'>('compact');
   const [orient, setOrient] = useState<'auto' | 'landscape' | 'portrait'>('auto');
   const [devicePortrait, setDevicePortrait] = useState(false);
   useEffect(() => {
@@ -740,9 +741,9 @@ export default function HandsetInterface() {
         {variant === 'hardkey' && (
           <Seg value={orient} set={setOrient} opts={[['auto', '⟳ Auto'], ['landscape', '▭ Landscape'], ['portrait', '▯ Portrait']]} />
         )}
-        <Seg value={variant} set={setVariant} opts={[['hardkey', 'Hard Keys'], ['touch', 'Touch']]} />
+        <Seg value={variant} set={setVariant} opts={[['compact', 'Compact 2×5'], ['hardkey', 'Console'], ['touch', 'Touch']]} />
       </div>
-      {variant === 'hardkey' ? <HardKeyHandset portrait={portrait} /> : <TouchHandset />}
+      {variant === 'compact' ? <HandsetCompact /> : variant === 'hardkey' ? <HardKeyHandset portrait={portrait} /> : <TouchHandset />}
     </div>
   );
 }
