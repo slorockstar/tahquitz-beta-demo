@@ -531,7 +531,7 @@ function Handset({ tier, label, tagline, mood, theme }: { tier: Tier; label: str
           </Glass>
 
           {/* Airline mark (display-rendered, mood-reactive) */}
-          <AirlineLogo tier={tier} mood={m} asleep={h.asleep} light={h.light} />
+          <AirlineLogo tier={tier} mood={m} asleep={h.asleep} light={h.light} theme={theme} />
 
           {/* ORB: play / pause / select */}
           <Glass tier={tier} hue={hue} shape="orb" label={h.menu ? 'Play on screen' : 'Play / Pause'} onPress={h.orb}
@@ -676,6 +676,7 @@ function Handset({ tier, label, tagline, mood, theme }: { tier: Tier; label: str
 
 export default function HandsetCompact() {
   const [mood, setMood] = useState<Mood>('auto');
+  const [theme] = useState<Theme>(DEFAULT_THEME);
   const opts: [Mood, string][] = [['auto', 'Auto (clock)'], ['day', '☀ Day'], ['sunset', '🌅 Sunset'], ['night', '🌙 Night'], ['dark', '🔴 Cabin dark']];
   return (
     <div className="w-full h-full overflow-auto flex flex-col items-center pt-16 pb-24 gap-6">
@@ -695,9 +696,9 @@ export default function HandsetCompact() {
         </div>
       </div>
       <div className="flex flex-wrap justify-center gap-20 px-6 pt-4">
-        <Handset tier="economy" label="Economy" tagline="Max legibility · zero graphics · low power" mood={mood} />
-        <Handset tier="premium" label="Premium Economy" tagline="Artwork · tint · animated feedback" mood={mood} />
-        <Handset tier="business" label="Business" tagline="Living gradients on every surface" mood={mood} />
+        <Handset tier="economy" label="Economy" tagline="Max legibility · zero graphics · low power" mood={mood} theme={theme} />
+        <Handset tier="premium" label="Premium Economy" tagline="Artwork · tint · animated feedback" mood={mood} theme={theme} />
+        <Handset tier="business" label="Business" tagline="Living gradients on every surface" mood={mood} theme={theme} />
       </div>
     </div>
   );
