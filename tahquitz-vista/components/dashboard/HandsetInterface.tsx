@@ -52,17 +52,33 @@ function usePlayback() {
 const SOURCES = ['Cabin Audio', 'Moving Map', 'Movie Ch. 1', 'Satellite Radio'];
 
 /* ---------- Audio visualizer ---------- */
-function Visualizer({ playing, hue, bars = 28, className = '' }: { playing: boolean; hue: number; bars?: number; className?: string }) {
+function Visualizer({ playing, hue, bars = 40, className = '' }: { playing: boolean; hue: number; bars?: number; className?: string }) {
+  const [levels, setLevels] = useState<number[]>(() => Array(bars).fill(0.05));
+  const phase = useRef(0);
+  useEffect(() => {
+    const id = setInterval(() => {
+      phase.current += 0.09;
+      const t = phase.current;
+      // Slow "phrase" envelope so loudness swells and relaxes like real music
+      const envelope = 0.55 + 0.25 * Math.sin(t * 0.35) + 0.12 * Math.sin(t * 1.3);
+      setLevels((prev) => prev.map((v, i) => {
+        if (!playing) return v * 0.85;
+        const f = i / bars;
+        const spectral = 1 - f * 0.75; // bass heavier than treble
+        const motion = 0.5 + 0.5 * Math.sin(t * (1.2 + f * 3) + i * 0.7);
+        const target = Math.min(1, envelope * spectral * (0.35 + 0.65 * motion) * (0.85 + Math.random() * 0.3));
+        return v + (target - v) * (target > v ? 0.45 : 0.18); // fast attack, slow release
+      }));
+    }, 90);
+    return () => clearInterval(id);
+  }, [playing, bars]);
+
   return (
-    <div className={`flex items-end gap-[3px] ${className}`}>
-      {Array.from({ length: bars }).map((_, i) => (
-        <motion.div
-          key={i}
-          className="flex-1 rounded-t-sm"
-          style={{ background: `linear-gradient(to top, hsl(${hue} 90% 55% / .9), hsl(${hue + 40} 90% 70% / .4))` }}
-          animate={playing ? { height: ['15%', `${30 + ((i * 37) % 70)}%`, `${10 + ((i * 53) % 50)}%`, '20%'] } : { height: '6%' }}
-          transition={{ duration: 0.8 + (i % 5) * 0.15, repeat: playing ? Infinity : 0, repeatType: 'mirror', ease: 'easeInOut' }}
-        />
+    <div className={`flex items-end gap-[2px] ${className}`}>
+      {levels.map((v, i) => (
+        <div key={i} className="flex-1 rounded-full"
+          style={{ height: `${Math.max(4, v * 100)}%`, transition: 'height 90ms linear',
+            background: `linear-gradient(to top, hsl(${hue} 45% 70% / .55), hsl(${hue} 45% 85% / .2))` }} />
       ))}
     </div>
   );
@@ -132,10 +148,15 @@ function HardKeyHandset() {
       {/* Handset: one edge-to-edge display under a glass face */}
       <div className="relative w-full max-w-[780px] aspect-[2.1/1] rounded-[36px] p-5 overflow-hidden bg-black
         ring-[6px] ring-[#1b1c20] shadow-[0_30px_60px_rgba(0,0,0,.7)] flex gap-5">
-        <motion.div className="absolute -inset-1/2 pointer-events-none" animate={{ rotate: 360 }}
-          transition={{ duration: 18, repeat: Infinity, ease: 'linear' }}
-          style={{ background: `conic-gradient(from 0deg, hsl(${hue} 80% 28%), transparent 30%, hsl(${hue + 60} 80% 24%), transparent 70%, hsl(${hue} 80% 28%))`, opacity: p.isPlaying ? 0.8 : 0.3 }} />
-        <div className="absolute inset-0 bg-black/35 pointer-events-none" />
+        {/* Soft ambient gradient backdrop */}
+        <div className="absolute inset-0 pointer-events-none" style={{ background: `linear-gradient(135deg, hsl(${hue} 35% 14%), hsl(${hue + 40} 30% 10%) 55%, hsl(${hue - 30} 30% 12%))`, transition: 'background 2s ease' }} />
+        <motion.div className="absolute w-[70%] h-[140%] -top-[20%] -left-[10%] rounded-full blur-3xl pointer-events-none"
+          animate={{ x: ['0%', '15%', '0%'], y: ['0%', '8%', '0%'] }} transition={{ duration: 28, repeat: Infinity, ease: 'easeInOut' }}
+          style={{ background: `radial-gradient(circle, hsl(${hue} 55% 45% / ${p.isPlaying ? 0.35 : 0.18}), transparent 65%)`, transition: 'background 2s ease' }} />
+        <motion.div className="absolute w-[60%] h-[130%] -bottom-[30%] -right-[10%] rounded-full blur-3xl pointer-events-none"
+          animate={{ x: ['0%', '-12%', '0%'], y: ['0%', '-6%', '0%'] }} transition={{ duration: 34, repeat: Infinity, ease: 'easeInOut' }}
+          style={{ background: `radial-gradient(circle, hsl(${hue + 50} 50% 50% / ${p.isPlaying ? 0.28 : 0.14}), transparent 65%)`, transition: 'background 2s ease' }} />
+        <div className="absolute inset-0 bg-black/20 pointer-events-none" />
         {p.callActive && (
           <motion.div className="absolute inset-0 pointer-events-none"
             animate={{ opacity: [0, 0.35, 0] }} transition={{ duration: 1.4, repeat: Infinity }}
@@ -170,7 +191,7 @@ function HardKeyHandset() {
               <span>{SOURCES[p.source]}</span>
               <span className="flex items-center gap-2">
                 <motion.span className="w-1.5 h-1.5 rounded-full" style={{ background: `hsl(${hue} 90% 60%)` }}
-                  animate={{ opacity: p.isPlaying ? [1, 0.2, 1] : 0.3 }} transition={{ duration: 1.2, repeat: Infinity }} />
+                  animate={{ opacity: p.isPlaying ? [1, 0.4, 1] : 0.3 }} transition={{ duration: 3, repeat: Infinity }} />
                 Jack 1 · Seat 4A
               </span>
             </div>
@@ -180,7 +201,7 @@ function HardKeyHandset() {
                 exit={{ opacity: 0, x: -30, filter: 'blur(6px)' }} transition={{ duration: 0.35 }} className="flex items-center gap-4">
                 <motion.div className="w-14 h-14 rounded-full flex-shrink-0 border border-white/10"
                   style={{ background: `radial-gradient(circle, #111 18%, hsl(${hue} 70% 45%) 20%, #0a0a0a 60%, hsl(${hue + 40} 60% 30%) 100%)` }}
-                  animate={{ rotate: p.isPlaying ? 360 : 0 }} transition={{ duration: 4, repeat: p.isPlaying ? Infinity : 0, ease: 'linear' }} />
+                  animate={{ rotate: p.isPlaying ? 360 : 0 }} transition={{ duration: 12, repeat: p.isPlaying ? Infinity : 0, ease: 'linear' }} />
                 <div className="min-w-0">
                   <h3 className="text-lg font-semibold text-white truncate">{p.track.title}</h3>
                   <p className="text-xs text-white/50 uppercase tracking-widest">{p.track.artist}</p>
@@ -188,13 +209,13 @@ function HardKeyHandset() {
               </motion.div>
             </AnimatePresence>
 
-            <Visualizer playing={p.isPlaying} hue={hue} className="h-10 opacity-80" />
+            <Visualizer playing={p.isPlaying} hue={hue} className="h-10" />
 
             {/* Track bar */}
             <div>
               <div className="relative h-1.5 bg-white/10 rounded-full overflow-hidden">
                 <motion.div className="absolute inset-y-0 left-0 rounded-full"
-                  style={{ background: `linear-gradient(90deg, hsl(${hue} 90% 55%), hsl(${hue + 50} 90% 65%))`, boxShadow: `0 0 10px hsl(${hue} 90% 60%)` }}
+                  style={{ background: `linear-gradient(90deg, hsl(${hue} 50% 70%), hsl(${hue + 30} 50% 80%))` }}
                   animate={{ width: `${pct}%` }} transition={{ ease: 'linear', duration: 1 }} />
               </div>
               <div className="flex justify-between text-[10px] text-white/40 mt-1 font-mono">
@@ -206,27 +227,30 @@ function HardKeyHandset() {
           {/* On-screen display overlays */}
           <AnimatePresence>
             {osd && (
-              <motion.div key={osd.kind} initial={{ opacity: 0, scale: 0.85 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 1.05 }}
-                transition={{ type: 'spring', stiffness: 300, damping: 24 }}
-                className="absolute inset-0 flex items-center justify-center bg-black/60 backdrop-blur-md">
+              <motion.div key={osd.kind} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                transition={{ duration: 0.25 }}
+                className={`absolute inset-0 flex items-center justify-center ${osd.kind === 'volume' ? 'bg-black/25' : 'bg-black/50 backdrop-blur-sm'}`}>
                 {osd.kind === 'volume' && (
-                  <div className="flex flex-col items-center gap-3 w-3/4">
-                    <svg viewBox="0 0 120 70" className="w-40">
-                      <path d="M10 65 A50 50 0 0 1 110 65" stroke="rgba(255,255,255,.1)" strokeWidth="10" fill="none" strokeLinecap="round" />
-                      <motion.path d="M10 65 A50 50 0 0 1 110 65" stroke={`hsl(${hue} 90% 60%)`} strokeWidth="10" fill="none" strokeLinecap="round"
-                        initial={false} animate={{ pathLength: p.volume / 100 }} transition={{ type: 'spring', stiffness: 200, damping: 20 }}
-                        style={{ filter: `drop-shadow(0 0 6px hsl(${hue} 90% 60%))` }} />
-                      <text x="60" y="60" textAnchor="middle" fill="white" fontSize="22" fontWeight="700">{p.volume}</text>
-                    </svg>
-                    <div className="flex gap-1 w-full">
-                      {Array.from({ length: 20 }).map((_, i) => (
-                        <motion.div key={i} className="flex-1 h-3 rounded-sm"
-                          animate={{ background: i < p.volume / 5 ? `hsl(${hue + i * 4} 90% 60%)` : 'rgba(255,255,255,.08)', scaleY: i < p.volume / 5 ? 1 : 0.6 }}
-                          transition={{ delay: i * 0.01 }} />
-                      ))}
+                  <motion.div initial={{ y: 16, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 16, opacity: 0 }}
+                    transition={{ type: 'spring', stiffness: 260, damping: 26 }}
+                    className="w-[85%] rounded-2xl bg-black/45 backdrop-blur-md border border-white/10 px-5 py-4">
+                    <div className="flex items-center justify-between mb-3 text-[10px] uppercase tracking-[.3em] text-white/60">
+                      <span>Headphone Volume</span>
+                      <motion.span key={p.volume} initial={{ y: -6, opacity: 0 }} animate={{ y: 0, opacity: 1 }}
+                        className="text-white text-sm font-semibold tracking-normal tabular-nums">{p.volume}</motion.span>
                     </div>
-                    <span className="text-[10px] uppercase tracking-[.3em] text-white/60">Headphone Volume</span>
-                  </div>
+                    <div className="flex items-center gap-3 text-white/70">
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M4 9h4l5-4v14l-5-4H4z" /></svg>
+                      <div className="relative flex-1 h-2 rounded-full bg-white/15">
+                        <motion.div className="absolute inset-y-0 left-0 rounded-full"
+                          initial={false} animate={{ width: `${p.volume}%` }} transition={{ type: 'spring', stiffness: 220, damping: 24 }}
+                          style={{ background: `linear-gradient(90deg, hsl(${hue} 50% 65%), hsl(${hue} 40% 88%))` }} />
+                        <motion.div className="absolute top-1/2 w-4 h-4 -mt-2 -ml-2 rounded-full bg-white shadow-[0_0_0_4px_rgba(255,255,255,.15),0_2px_6px_rgba(0,0,0,.4)]"
+                          initial={false} animate={{ left: `${p.volume}%`, scale: [1.25, 1] }} transition={{ type: 'spring', stiffness: 220, damping: 24 }} />
+                      </div>
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M4 9h4l5-4v14l-5-4H4z" fill="currentColor" /><path d="M16 8a5 5 0 0 1 0 8M19 5a9 9 0 0 1 0 14" /></svg>
+                    </div>
+                  </motion.div>
                 )}
                 {osd.kind === 'track' && (
                   <motion.div initial={{ x: 40 }} animate={{ x: 0 }} className="text-center">
@@ -267,18 +291,14 @@ function HardKeyHandset() {
         {/* Right key cluster: transport + call */}
         <div className="relative z-10 flex flex-col justify-center gap-3">
           <div className="flex gap-3">
-            <HardKey id="hk-prev" label="Previous" onPress={() => { p.prev(); show('track'); }}
-              under={<motion.div className="absolute inset-0" animate={{ x: ['40%', '-40%'], opacity: [0, 0.35, 0] }} transition={{ duration: 2.2, repeat: Infinity }}
-                style={{ background: 'linear-gradient(90deg, transparent, rgba(255,255,255,.6), transparent)' }} />}>{Icon.prev}</HardKey>
-            <HardKey id="hk-next" label="Next" onPress={() => { p.next(); show('track'); }}
-              under={<motion.div className="absolute inset-0" animate={{ x: ['-40%', '40%'], opacity: [0, 0.35, 0] }} transition={{ duration: 2.2, repeat: Infinity }}
-                style={{ background: 'linear-gradient(90deg, transparent, rgba(255,255,255,.6), transparent)' }} />}>{Icon.next}</HardKey>
+            <HardKey id="hk-prev" label="Previous" onPress={() => { p.prev(); show('track'); }}>{Icon.prev}</HardKey>
+            <HardKey id="hk-next" label="Next" onPress={() => { p.next(); show('track'); }}>{Icon.next}</HardKey>
           </div>
           <div className="flex gap-3">
-            <HardKey id="hk-play" label="Play/Pause" glow={`hsl(${hue} 90% 65%)`} onPress={() => { p.setIsPlaying((v) => !v); show('play'); }}
+            <HardKey id="hk-play" label="Play/Pause" glow={`hsl(${hue} 60% 75%)`} onPress={() => { p.setIsPlaying((v) => !v); show('play'); }}
               under={<>
-                <motion.div className="absolute inset-0" animate={{ opacity: p.isPlaying ? [0.25, 0.6, 0.25] : 0.1 }} transition={{ duration: 1.6, repeat: Infinity }}
-                  style={{ background: `radial-gradient(circle, hsl(${hue} 90% 55%), transparent 70%)` }} />
+                <motion.div className="absolute inset-0" animate={{ opacity: p.isPlaying ? [0.15, 0.3, 0.15] : 0.05 }} transition={{ duration: 4, repeat: Infinity }}
+                  style={{ background: `radial-gradient(circle, hsl(${hue} 50% 60%), transparent 70%)` }} />
                 <svg viewBox="0 0 40 40" className="absolute inset-0 w-full h-full -rotate-90">
                   <circle cx="20" cy="20" r="17" stroke="rgba(255,255,255,.12)" strokeWidth="2" fill="none" />
                   <motion.circle cx="20" cy="20" r="17" stroke={`hsl(${hue} 90% 65%)`} strokeWidth="2" fill="none" strokeLinecap="round"
