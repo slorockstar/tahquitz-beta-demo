@@ -737,13 +737,7 @@ export default function HandsetInterface() {
 
   return (
     <div className="relative w-full h-full">
-      <div className="absolute top-2 right-3 z-40 flex gap-2">
-        {variant === 'hardkey' && (
-          <Seg value={orient} set={setOrient} opts={[['auto', '⟳ Auto'], ['landscape', '▭ Landscape'], ['portrait', '▯ Portrait']]} />
-        )}
-        <Seg value={variant} set={setVariant} opts={[['compact', 'Compact 2×5'], ['hardkey', 'Console'], ['touch', 'Touch']]} />
-      </div>
-      {variant === 'compact' ? <HandsetCompact /> : variant === 'hardkey' ? <HardKeyHandset portrait={portrait} /> : <TouchHandset />}
+      <HandsetCompact />
     </div>
   );
 }

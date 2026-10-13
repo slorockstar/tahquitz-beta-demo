@@ -68,20 +68,36 @@ const MOOD_STYLE: Record<Exclude<Mood, 'auto'>, { a: number; b: number; l: numbe
   dark: { a: 0, b: 25, l: 45, label: 'Cabin dark' }, // red/amber keeps night vision
 };
 
+/* ---------- Theme tokens (editable live in Developer mode) ---------- */
+export type Theme = { primary: string; secondary: string; followArt: boolean; logoUrl: string | null; airline: string; font: string };
+export const DEFAULT_THEME: Theme = { primary: '#38bdf8', secondary: '#f59e0b', followArt: true, logoUrl: null, airline: 'Tahquitz', font: 'Inter, system-ui, sans-serif' };
+export const hexHue = (hex: string) => {
+  const m = hex.replace('#', '').match(/.{2}/g); if (!m) return 200;
+  const [r, g, b] = m.map((x) => parseInt(x, 16) / 255);
+  const mx = Math.max(r, g, b), mn = Math.min(r, g, b), d = mx - mn;
+  if (!d) return 0;
+  const hh = mx === r ? ((g - b) / d) % 6 : mx === g ? (b - r) / d + 2 : (r - g) / d + 4;
+  return Math.round(hh * 60 + 360) % 360;
+};
+
 /* ---------- Airline mark, rendered by the display (lower-left) ---------- */
-function AirlineLogo({ tier, mood, asleep, light }: { tier: Tier; mood: Exclude<Mood, 'auto'>; asleep: boolean; light: boolean }) {
-  const s = MOOD_STYLE[mood];
+function AirlineLogo({ tier, mood, asleep, light, theme }: { tier: Tier; mood: Exclude<Mood, 'auto'>; asleep: boolean; light: boolean; theme: Theme }) {
+  const s = theme.followArt ? MOOD_STYLE[mood] : { ...MOOD_STYLE[mood], a: hexHue(theme.primary), b: hexHue(theme.secondary) };
   const dim = asleep ? 0.25 : mood === 'dark' ? 0.55 : 1;
   const id = `lg-${tier}`;
   const mono = tier === 'economy';
   return (
-    <motion.div className="absolute z-40 left-[9px] top-[444px] w-[48px] flex flex-col items-center pointer-events-none"
+    <motion.div className="absolute z-40 left-[40px] top-[446px] w-[70px] flex flex-col items-center pointer-events-none"
       animate={{ opacity: mono ? (mood === 'night' || mood === 'dark' || asleep ? 0.35 : 0.7) : asleep ? [0.15, 0.35, 0.15] : dim }}
       transition={asleep ? { duration: 4, repeat: Infinity } : { duration: 1.2 }}>
       {light && !mono && (
         <motion.span className="absolute -inset-2 rounded-full blur-md" initial={{ opacity: 0 }} animate={{ opacity: 0.6 }}
           style={{ background: 'radial-gradient(circle, rgba(255,200,130,.6), transparent 70%)' }} />
       )}
+      {theme.logoUrl ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={theme.logoUrl} alt={theme.airline} className={`relative max-h-[26px] max-w-[64px] object-contain ${mono ? 'grayscale brightness-200' : ''}`} />
+      ) : (
       <svg viewBox="0 0 32 24" width="34" height="26" className="relative overflow-visible">
         <defs>
           <linearGradient id={id} x1="0" y1="0" x2="1" y2="1">
@@ -111,7 +127,8 @@ function AirlineLogo({ tier, mood, asleep, light }: { tier: Tier; mood: Exclude<
           <motion.circle key={i} cx={x} cy={y} r=".9" fill="white" animate={{ opacity: [0.1, 1, 0.1] }} transition={{ duration: 2.4, delay: i * 0.7, repeat: Infinity }} />
         ))}
       </svg>
-      <span className="relative text-[7px] font-semibold tracking-[.25em] mt-0.5" style={{ color: mono ? '#fff' : `hsl(${s.a} 60% ${s.l + 10}%)`, transition: 'color 1.5s' }}>TAHQUITZ</span>
+      )}
+      <span className="relative text-[7px] font-semibold tracking-[.25em] mt-0.5 uppercase whitespace-nowrap" style={{ color: mono ? '#fff' : `hsl(${s.a} 60% ${s.l + 10}%)`, transition: 'color 1.5s' }}>{theme.airline}</span>
     </motion.div>
   );
 }
@@ -181,7 +198,22 @@ function useHandset(initial: Item = LIBRARY.Movies[0]) {
     if (idle.current) clearTimeout(idle.current);
     idle.current = setTimeout(() => setMenu(false), 9000);
   };
-  const wake = () => { if (asleep) { setAsleep(false); return true; } return false; };
+  const wakeRef = useRef<() => boolean>(() => false);
+  const [dimmed, setDimmed] = useState(false);
+  const dimRef = useRef(false);
+  const dimT = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const touch = () => {
+    if (dimT.current) clearTimeout(dimT.current);
+    dimT.current = setTimeout(() => { dimRef.current = true; setDimmed(true); }, 12000); // backlight timeout
+  };
+  useEffect(() => { touch(); return () => { if (dimT.current) clearTimeout(dimT.current); }; }, []);
+  const wake = () => {
+    touch();
+    if (asleep) { setAsleep(false); return true; }
+    if (dimRef.current) { dimRef.current = false; setDimmed(false); return true; } // first press only wakes
+    return false;
+  };
+  wakeRef.current = wake;
 
   const vol = (d: 1 | -1) => {
     if (wake()) return;
@@ -209,8 +241,8 @@ function useHandset(initial: Item = LIBRARY.Movies[0]) {
   const powerHold = () => setAsleep((a) => !a);
 
   return {
-    playing, pos, isPlaying, volume, menu, cat, idx, osd, call, light, asleep, sleepStep,
-    vol, scrub, orb, menuKey, lightKey, powerTap, powerHold, toggleCall: () => setCall((c) => !c),
+    playing, pos, isPlaying, volume, menu, cat, idx, osd, call, light, asleep, sleepStep, dimmed,
+    vol, scrub, orb, menuKey, lightKey, powerTap, powerHold, toggleCall: () => { wake(); setCall((c) => !c); },
   };
 }
 type H = ReturnType<typeof useHandset>;
@@ -238,9 +270,9 @@ function GradientMesh({ hue, intensity = 1 }: { hue: number; intensity?: number 
 /* =========================================================
    Shaped glass key (generic)
    ========================================================= */
-function Glass({ tier, hue, shape, style, children, onPress, onHold, label, under }: {
+function Glass({ tier, hue, shape, style, children, onPress, onHold, label, under, dim = false }: {
   tier: Tier; hue: number; shape: 'orb' | 'blade' | 'pill' | 'squircle'; style: React.CSSProperties;
-  children?: React.ReactNode; onPress: (e: React.PointerEvent<HTMLButtonElement>) => void; onHold?: () => void; label: string; under?: React.ReactNode;
+  children?: React.ReactNode; onPress: (e: React.PointerEvent<HTMLButtonElement>) => void; onHold?: () => void; label: string; under?: React.ReactNode; dim?: boolean;
 }) {
   const [flash, setFlash] = useState<{ n: number; x: number; y: number } | null>(null);
   const t = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -276,7 +308,7 @@ function Glass({ tier, hue, shape, style, children, onPress, onHold, label, unde
         )}
       </AnimatePresence>
       {tier !== 'economy' && <span className="absolute inset-x-[18%] top-[5%] h-[30%] rounded-full bg-gradient-to-b from-white/30 to-transparent pointer-events-none" />}
-      <span className="relative flex flex-col items-center justify-center w-full h-full">{children}</span>
+      <span className="relative flex flex-col items-center justify-center w-full h-full transition-opacity duration-700" style={{ opacity: dim ? 0.25 : 1 }}>{children}</span>
     </motion.button>
   );
 
@@ -296,7 +328,7 @@ function Glass({ tier, hue, shape, style, children, onPress, onHold, label, unde
 /* =========================================================
    One handset
    ========================================================= */
-function Handset({ tier, label, tagline, mood }: { tier: Tier; label: string; tagline: string; mood: Mood }) {
+function Handset({ tier, label, tagline, mood, theme }: { tier: Tier; label: string; tagline: string; mood: Mood; theme: Theme }) {
   const h = useHandset(tier === 'economy' ? LIBRARY.Movies[0] : LIBRARY.Music[tier === 'business' ? 1 : 0]);
   const m = resolveMood(mood);
   // Liquid volume: remember direction of last change so the surface can slosh
@@ -305,7 +337,10 @@ function Handset({ tier, label, tagline, mood }: { tier: Tier; label: string; ta
   useEffect(() => {
     if (h.volume !== prevVol.current) { setSlosh({ d: Math.sign(h.volume - prevVol.current), n: Date.now() }); prevVol.current = h.volume; }
   }, [h.volume]);
-  const hue = h.playing.hue;
+  const hue = theme.followArt ? h.playing.hue : hexHue(theme.primary);
+  // Cabin mood re-tints the living gradient (Business) and the whole panel
+  const meshHue = m === 'day' ? hue : MOOD_STYLE[m].a;
+  const moodFilter = m === 'night' ? 'brightness(.82) saturate(.9)' : m === 'dark' ? 'brightness(.55) sepia(.55) hue-rotate(-25deg) saturate(1.6)' : m === 'sunset' ? 'saturate(1.15)' : 'none';
   const pct = h.pos / h.playing.duration;
   const chapter = h.playing.chapters[Math.min(h.playing.chapters.length - 1, Math.floor(pct * h.playing.chapters.length))];
   const list = LIBRARY[KINDS[h.cat]];
@@ -355,17 +390,17 @@ function Handset({ tier, label, tagline, mood }: { tier: Tier; label: string; ta
         </svg>
 
         {/* BODY */}
-        <div tabIndex={0} onKeyDown={onKey}
+        <div tabIndex={0} onKeyDown={onKey} style={{ filter: moodFilter, transition: 'filter 1.5s', fontFamily: theme.font }}
           className="relative w-full h-full rounded-[32px] overflow-hidden bg-black ring-[5px] ring-[#1c1d21] shadow-[0_25px_50px_rgba(0,0,0,.7)] outline-none focus-visible:ring-sky-500/60">
 
           {/* Backgrounds */}
           {tier === 'premium' && <div className="absolute inset-0" style={{ background: `linear-gradient(180deg, hsl(${hue} 35% 17%), #050507 72%)`, transition: 'background 1.5s' }} />}
           {tier === 'business' && (
             <>
-              <GradientMesh hue={hue} intensity={h.asleep ? 0.25 : 1} />
+              <GradientMesh hue={meshHue} intensity={h.asleep ? 0.25 : h.dimmed ? 0.45 : 1} />
               <AnimatePresence>
                 {!h.menu && (
-                  <motion.img key={h.playing.art} src={h.playing.art} alt="" initial={{ opacity: 0, scale: 1.1 }} animate={{ opacity: 0.45, scale: 1 }} exit={{ opacity: 0 }}
+                  <motion.img key={h.playing.art} src={h.playing.art} alt="" initial={{ opacity: 0, scale: 1.1 }} animate={{ opacity: h.dimmed ? 0.1 : 0.45, scale: 1 }} exit={{ opacity: 0 }}
                     transition={{ duration: 1.2 }} className="absolute inset-x-0 top-0 w-full h-[58%] object-cover mix-blend-luminosity"
                     style={{ maskImage: 'linear-gradient(black 40%, transparent)' }} />
                 )}
@@ -373,15 +408,19 @@ function Handset({ tier, label, tagline, mood }: { tier: Tier; label: string; ta
             </>
           )}
           {h.light && <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="absolute inset-x-0 top-0 h-24 pointer-events-none"
-            style={{ background: 'radial-gradient(ellipse at 50% 0%, rgba(255,214,150,.35), transparent 70%)' }} />}
+            style={{ background: tier === 'economy' ? 'radial-gradient(ellipse at 50% 0%, rgba(255,255,255,.18), transparent 70%)' : `radial-gradient(ellipse at 50% 0%, hsl(${hue} 70% 75% / .3), transparent 70%)` }} />}
+          {/* Cabin mood wash */}
+          <motion.div className="absolute inset-0 pointer-events-none" animate={{ opacity: m === 'day' ? 0 : 1 }} transition={{ duration: 1.5 }}
+            style={{ background: m === 'sunset' ? 'linear-gradient(180deg, rgba(255,120,60,.22), rgba(255,60,140,.12) 60%, transparent)'
+              : m === 'night' ? 'linear-gradient(180deg, rgba(40,50,140,.35), rgba(10,10,40,.25))' : m === 'dark' ? 'rgba(60,0,0,.25)' : 'transparent', mixBlendMode: 'screen' }} />
 
           {/* ---------- DISPLAY ZONE ---------- */}
-          <div className="absolute inset-x-0 top-0 h-[272px] px-4 pt-4 flex flex-col">
+          <div className="absolute inset-x-0 top-0 h-[272px] px-4 pt-4 flex flex-col" style={{ opacity: h.dimmed ? 0.2 : 1, transition: 'opacity .9s ease' }}>
             <div className="flex justify-between items-center text-[10px] text-white/50 uppercase tracking-widest">
               <span>32C</span>
               <span className="flex items-center gap-1.5">
                 {SLEEP_STEPS[h.sleepStep] > 0 && <span>☾ {SLEEP_STEPS[h.sleepStep]}m</span>}
-                {h.light && <span className="text-amber-300">☀</span>}
+                {h.light && <span style={{ color: accent }}>●</span>}
                 <span>{h.menu ? 'Browse' : 'Seatback'}</span>
               </span>
             </div>
