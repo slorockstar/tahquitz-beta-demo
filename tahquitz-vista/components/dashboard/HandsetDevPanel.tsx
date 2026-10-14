@@ -194,15 +194,42 @@ function Code({ text, name, type }: { text: string; name: string; type?: string 
   );
 }
 
+/* ---------------- integrations (Go Live) ---------------- */
+type IntKey = 'media' | 'player' | 'lights' | 'call' | 'cabin' | 'telemetry' | 'seatId';
+const INTEGRATIONS: { k: IntKey; n: string; label: string; system: string; drives: string; hook: string; ph: string }[] = [
+  { k: 'media', n: '1', label: 'Media catalog API', system: 'IFE content server / head-end (movies, TV, music, artwork)', drives: 'Menu lists, titles, artwork, durations', hook: 'getCatalog()', ph: 'https://ife.local/api/v1/catalog' },
+  { k: 'player', n: '2', label: 'Seatback player API', system: 'This seat\'s monitor (e.g. Rave / Panasonic / Thales seat-box)', drives: 'Orb play/pause, scrub, volume blade, "Play on screen"', hook: 'play() · seek() · setVolume() · onPlayerState()', ph: 'https://seatbox.local/player' },
+  { k: 'lights', n: '3', label: 'Reading light API', system: 'Seat lighting controller', drives: 'Light key on/off', hook: 'setReadingLight()', ph: 'https://seatbox.local/light' },
+  { k: 'call', n: '4', label: 'Attendant call API', system: 'Cabin call system (chime + call light)', drives: 'Side Call key, crew status pill', hook: 'setAttendantCall()', ph: 'https://seatbox.local/call' },
+  { k: 'cabin', n: '5', label: 'Cabin state / PA interrupt', system: 'Aircraft cabin system via IFE head-end (e.g. Boeing CSS, Airbus CIDS) — PA, mood lighting, seatbelt sign, flight phase', drives: 'Auto-pause on PA, cabin mood (day / night / dark), sleep dimming', hook: 'onCabinState()', ph: 'wss://ife.local/cabin' },
+  { k: 'telemetry', n: '6', label: 'Telemetry (optional)', system: 'Airline analytics / MRO health', drives: 'Key usage, faults, cord health', hook: 'log()', ph: 'https://ops.airline.com/meridian' },
+  { k: 'seatId', n: '•', label: 'Seat ID', system: 'Assigned per handset at install', drives: 'Routes every call to the right seat', hook: 'all calls', ph: '32C' },
+];
+const LS_INT = 'meridian.integrations.v1';
+const KIT = [
+  { f: 'meridianAdapters.ts.txt', what: 'The ONE file a developer edits to go live. Media, player, lights, call, cabin/PA, telemetry — mock included.', tag: 'Edit this' },
+  { f: 'HandsetCompact.tsx.txt', what: 'Complete handset UI: 3 cabin tiers, glass keys, liquid volume, music bars, backlight, airline logo.', tag: 'Use as-is' },
+  { f: 'HandsetDevPanel.tsx.txt', what: 'This Developer mode: brand editor, real-file metadata reader (ID3, video, image), exporter.', tag: 'Use as-is' },
+  { f: 'volume-blade.html', what: 'Business liquid volume blade, standalone. No framework, ~3 KB. Open in any browser.', tag: 'Demo' },
+  { f: 'README.txt', what: '5-step go-live guide and file map.', tag: 'Start here' },
+];
+
 /* ---------------- panel ---------------- */
-type Tab = 'Brand' | 'Content' | 'Media' | 'Export' | 'Hardware';
+type Tab = 'Go Live' | 'Brand' | 'Content' | 'Media' | 'Code' | 'Export' | 'Hardware';
 
 export default function DevPanel({ theme, setTheme, lib, setLib, mood, onReset, onClose }: {
   theme: Theme; setTheme: React.Dispatch<React.SetStateAction<Theme>>;
   lib: Library; setLib: React.Dispatch<React.SetStateAction<Library>>;
   mood: Mood; onReset: () => void; onClose: () => void;
 }) {
-  const [tab, setTab] = useState<Tab>('Brand');
+  const [tab, setTab] = useState<Tab>('Go Live');
+  const [ints, setInts] = useState<Record<IntKey, string>>(() => {
+    const empty = { media: '', player: '', lights: '', call: '', cabin: '', telemetry: '', seatId: '' };
+    if (typeof window === 'undefined') return empty;
+    try { return { ...empty, ...JSON.parse(localStorage.getItem(LS_INT) || '{}') }; } catch { return empty; }
+  });
+  const setInt = (k: IntKey, v: string) => setInts((s) => { const n = { ...s, [k]: v }; try { localStorage.setItem(LS_INT, JSON.stringify(n)); } catch { /* quota */ } return n; });
+  const liveCount = INTEGRATIONS.filter((i) => i.k !== 'seatId' && i.k !== 'telemetry' && ints[i.k]).length;
   const [logoMeta, setLogoMeta] = useState<[string, string][] | null>(null);
   const [media, setMedia] = useState<MediaMeta[]>([]);
   const [busy, setBusy] = useState(false);
@@ -255,8 +282,9 @@ export default function DevPanel({ theme, setTheme, lib, setLib, mood, onReset, 
     theme, defaultMood: mood,
     tiers: { economy: { gradients: false, artwork: false, maxFps: 15 }, premium: { gradients: false, artwork: true, maxFps: 30 }, business: { gradients: true, artwork: true, maxFps: 60 } },
     backlight: { dimAfterMs: 10000, dimLevel: 0.2, wakeOn: ['anyKey', 'nowPlayingTap'] },
+    integrations: { ...ints, adapter: Object.values(ints).some(Boolean) ? 'http' : 'mock' },
     library: lib,
-  }), [theme, lib, mood]);
+  }), [theme, lib, mood, ints]);
 
   const css = `/* Meridian handset design tokens — drop into any stylesheet */
 :root {
@@ -319,9 +347,9 @@ import config from './meridian.config.json';
         </div>
       </div>
       <div className="flex gap-1 px-5 border-b border-white/10">
-        {(['Brand', 'Content', 'Media', 'Export', 'Hardware'] as Tab[]).map((t) => (
-          <button key={t} id={`dev-tab-${t.toLowerCase()}`} onClick={() => setTab(t)}
-            className={`relative px-3 py-2 text-[11px] ${tab === t ? 'text-white' : 'text-white/45 hover:text-white/80'}`}>
+        {(['Go Live', 'Brand', 'Content', 'Media', 'Code', 'Export', 'Hardware'] as Tab[]).map((t) => (
+          <button key={t} id={`dev-tab-${t.toLowerCase().replace(' ', '-')}`} onClick={() => setTab(t)}
+            className={`relative px-2 py-2 text-[11px] whitespace-nowrap ${tab === t ? 'text-white' : 'text-white/45 hover:text-white/80'}`}>
             {t}
             {tab === t && <motion.span layoutId="devtab" className="absolute left-2 right-2 -bottom-px h-[2px] rounded-full" style={{ background: theme.primary }} />}
           </button>
@@ -331,6 +359,125 @@ import config from './meridian.config.json';
       <div className="flex-1 overflow-auto px-5 py-4 space-y-4">
         <AnimatePresence mode="wait">
           <motion.div key={tab} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ duration: 0.15 }} className="space-y-4">
+
+            {tab === 'Go Live' && (<>
+              <div className="rounded-2xl p-4 border border-white/10 relative overflow-hidden">
+                <div className="absolute inset-0 opacity-30" style={{ background: `radial-gradient(circle at 0% 0%, ${theme.primary}, transparent 60%), radial-gradient(circle at 100% 100%, ${theme.secondary}, transparent 60%)` }} />
+                <div className="relative">
+                  <p className="text-[10px] uppercase tracking-widest text-white/50">Developer handoff</p>
+                  <p className="text-[15px] font-semibold leading-snug mt-0.5">Design is approved and the code is done. Here&apos;s everything engineering needs.</p>
+                  <div className="grid grid-cols-3 gap-2 mt-3">
+                    {[['Done', 'UI, animations, 3 tiers'], ['Config', 'brand + content as JSON'], ['1 file', 'left to wire']].map(([a, b]) => (
+                      <div key={a} className="rounded-xl bg-black/40 p-2.5 text-center"><p className="text-[16px] font-bold">{a}</p><p className="text-[9.5px] text-white/55 leading-tight">{b}</p></div>
+                    ))}
+                  </div>
+                  <p className="text-[10px] uppercase tracking-widest text-white/40 mt-3 mb-1">The developer receives</p>
+                  <ul className="space-y-1 text-[11px] text-white/80">
+                    <li>📦 <b>Source code</b>: the files running in this demo (Code tab).</li>
+                    <li>🎨 <b>meridian.config.json</b>: this airline&apos;s colours, logo, font and content (Export tab).</li>
+                    <li>🔌 <b>meridianAdapters.ts</b>: the only file to edit, with a slot for each aircraft system below.</li>
+                    <li>⌨️ <b>Key map + kiosk URLs</b>: how the physical keys and display load (Hardware tab).</li>
+                  </ul>
+                  <p className="text-[10px] uppercase tracking-widest text-white/40 mt-3 mb-1">Still to do (engineering)</p>
+                  <ul className="space-y-1 text-[11px] text-white/80">
+                    <li>☐ Link each system below to the aircraft&apos;s real API</li>
+                    <li>☐ Load onto the handset and test on the real panel</li>
+                    <li>☐ Airline / aircraft certification</li>
+                  </ul>
+                  <div className="flex gap-1.5 mt-3">
+                    <Btn primary id="dev-handoff-config" onClick={() => download('meridian.config.json', JSON.stringify(config, null, 2))}>Download handoff config</Btn>
+                    <a href="/handset/kit/README.txt" target="_blank" rel="noreferrer" className="px-3 py-1.5 rounded-lg text-[11px] bg-white/5 text-white/80 border border-white/10 hover:border-white/40">Open README</a>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between">
+                <p className="text-[10px] uppercase tracking-widest text-white/40">Aircraft integration map</p>
+                <span className="text-[10px] font-mono text-white/60">{liveCount}/5 core systems connected</span>
+              </div>
+              <div className="h-1.5 rounded-full bg-white/10 overflow-hidden -mt-2">
+                <motion.div className="h-full rounded-full" animate={{ width: `${(liveCount / 5) * 100}%` }} style={{ background: `linear-gradient(90deg, ${theme.primary}, ${theme.secondary})` }} />
+              </div>
+              {INTEGRATIONS.map((i) => (
+                <div key={i.k} className="rounded-xl border border-white/10 bg-white/[.03] p-3">
+                  <div className="flex items-start gap-2.5">
+                    <span className="w-6 h-6 shrink-0 rounded-full bg-white/10 text-[11px] font-bold flex items-center justify-center">{i.n}</span>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <p className="text-[12px] font-semibold">{i.label}</p>
+                        <span className={`ml-auto text-[9px] px-1.5 py-0.5 rounded-full ${ints[i.k] ? 'bg-emerald-400/20 text-emerald-200' : 'bg-white/10 text-white/50'}`}>{ints[i.k] ? '● Linked' : '○ Using mock'}</span>
+                      </div>
+                      <p className="text-[10px] text-white/50 mt-0.5">From: {i.system}</p>
+                      <p className="text-[10px] text-white/50">Drives: {i.drives}</p>
+                      <input id={`dev-int-${i.k}`} className={`${inputCls} mt-2`} placeholder={i.ph} value={ints[i.k]} onChange={(e) => setInt(i.k, e.target.value)} spellCheck={false} />
+                      <p className="text-[9.5px] text-white/35 font-mono mt-1">Code hook: meridianAdapters.ts → {i.hook}</p>
+                    </div>
+                  </div>
+                </div>
+              ))}
+
+              <div className="rounded-xl border border-white/10 p-3">
+                <p className="text-[10px] uppercase tracking-widest text-white/40 mb-2">Live on a plane in 5 steps</p>
+                <ol className="space-y-2 text-[11px] text-white/80">
+                  {[
+                    ['Brand it', 'Brand tab — colours, logo, name.', 'Brand'],
+                    ['Load content', 'Media tab (files) or link the catalog API above.', 'Media'],
+                    ['Link systems', 'Fill the endpoints above. Developer swaps mock → httpAdapter (one line).', 'Code'],
+                    ['Export + load', 'Download config, open the kiosk URL on the handset, import once.', 'Hardware'],
+                    ['Validate + certify', 'Test on the target panel, then airline / aircraft approval.', 'Hardware'],
+                  ].map(([a, b, t], idx) => (
+                    <li key={a} className="flex gap-2">
+                      <span className="w-5 h-5 shrink-0 rounded-full text-[10px] font-bold flex items-center justify-center text-black" style={{ background: theme.primary }}>{idx + 1}</span>
+                      <span className="flex-1"><b>{a}</b> — {b}</span>
+                      <button className="text-[10px] text-white/50 hover:text-white" onClick={() => setTab(t as Tab)}>Open →</button>
+                    </li>
+                  ))}
+                </ol>
+              </div>
+              <p className="text-[9.5px] text-white/35 leading-relaxed">
+                Example system names are illustrative. Actual endpoints, message formats and PA-interrupt behaviour come from the IFE vendor&apos;s and airframer&apos;s interface documents (ICDs) for each aircraft; certification is still required.
+              </p>
+            </>)}
+
+            {tab === 'Code' && (<>
+              <p className="text-[11px] text-white/55">The actual source running on this page — regenerated on every deploy. Open, read, download.</p>
+              {KIT.map((k) => (
+                <div key={k.f} className="rounded-xl border border-white/10 bg-white/[.03] p-3 flex gap-3 items-start">
+                  <span className="text-[18px] leading-none mt-0.5">{k.f.endsWith('.html') ? '◧' : '📄'}</span>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <p className="text-[12px] font-mono font-semibold truncate">{k.f}</p>
+                      <span className="text-[9px] px-1.5 py-0.5 rounded-full shrink-0" style={{ background: k.tag === 'Edit this' ? theme.primary : 'rgba(255,255,255,.1)', color: k.tag === 'Edit this' ? '#000' : 'rgba(255,255,255,.7)' }}>{k.tag}</span>
+                    </div>
+                    <p className="text-[10.5px] text-white/55 mt-0.5">{k.what}</p>
+                    <div className="flex gap-1.5 mt-2">
+                      <a href={`/handset/kit/${k.f}`} target="_blank" rel="noreferrer" className="px-3 py-1.5 rounded-lg text-[11px] bg-white text-black font-medium">Open</a>
+                      <a href={`/handset/kit/${k.f}`} download className="px-3 py-1.5 rounded-lg text-[11px] bg-white/5 border border-white/10 text-white/80">Download</a>
+                    </div>
+                  </div>
+                </div>
+              ))}
+              <div className="rounded-xl border border-white/10 p-3">
+                <p className="text-[10px] uppercase tracking-widest text-white/40 mb-2">Where things live</p>
+                <table className="w-full text-[10.5px]">
+                  <tbody className="text-white/75">
+                    {[
+                      ['Business liquid volume', 'HandsetCompact → VOLUME BLADE'],
+                      ['Music visualizer', 'HandsetCompact → MusicBars'],
+                      ['Living gradient', 'HandsetCompact → GradientMesh'],
+                      ['Glass keys + ripple', 'HandsetCompact → Glass'],
+                      ['Backlight 10 s / wake', 'HandsetCompact → useHandset → touch / wake'],
+                      ['Airline logo by mood', 'HandsetCompact → AirlineLogo'],
+                      ['Colours / font tokens', 'Export → meridian.tokens.css'],
+                      ['Aircraft APIs', 'meridianAdapters.ts'],
+                    ].map(([a, b]) => (
+                      <tr key={a} className="border-t border-white/5"><td className="py-1 pr-2">{a}</td><td className="py-1 font-mono text-emerald-200/80">{b}</td></tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <p className="text-[9.5px] text-white/35">Rename .tsx.txt → .tsx to use in a React/Next.js app (needs react, framer-motion, tailwindcss).</p>
+            </>)}
 
             {tab === 'Brand' && (<>
               {(['primary', 'secondary'] as const).map((k) => (
