@@ -1,6 +1,6 @@
 MERIDIAN HANDSET KIT
 ====================
-Generated 2026-10-14T23:57:17.138Z
+Generated 2026-10-15T14:02:23.067Z
 
 FILES
   HandsetCompact.tsx.txt   The handset UI: all three cabin tiers, keys, animations, backlight logic.

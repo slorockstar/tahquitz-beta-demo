@@ -214,6 +214,29 @@ const KIT = [
   { f: 'README.txt', what: '5-step go-live guide and file map.', tag: 'Start here' },
 ];
 
+/* ---------------- tiny zip writer (stored, no compression) ---------------- */
+const CRC = (() => { const t = new Uint32Array(256); for (let n = 0; n < 256; n++) { let c = n; for (let k = 0; k < 8; k++) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1; t[n] = c >>> 0; } return t; })();
+const crc32 = (d: Uint8Array) => { let c = 0xffffffff; for (let i = 0; i < d.length; i++) c = CRC[(c ^ d[i]) & 0xff] ^ (c >>> 8); return (c ^ 0xffffffff) >>> 0; };
+function zip(files: { name: string; text: string }[]): Blob {
+  const enc = new TextEncoder(); const parts: Uint8Array[] = []; const central: Uint8Array[] = []; let offset = 0;
+  for (const f of files) {
+    const name = enc.encode(f.name), data = enc.encode(f.text), crc = crc32(data);
+    const h = new DataView(new ArrayBuffer(30));
+    h.setUint32(0, 0x04034b50, true); h.setUint16(4, 20, true); h.setUint16(8, 0, true); h.setUint16(12, 33, true);
+    h.setUint32(14, crc, true); h.setUint32(18, data.length, true); h.setUint32(22, data.length, true); h.setUint16(26, name.length, true);
+    parts.push(new Uint8Array(h.buffer), name, data);
+    const c = new DataView(new ArrayBuffer(46));
+    c.setUint32(0, 0x02014b50, true); c.setUint16(4, 20, true); c.setUint16(6, 20, true); c.setUint16(14, 33, true);
+    c.setUint32(16, crc, true); c.setUint32(20, data.length, true); c.setUint32(24, data.length, true); c.setUint16(28, name.length, true); c.setUint32(42, offset, true);
+    central.push(new Uint8Array(c.buffer), name);
+    offset += 30 + name.length + data.length;
+  }
+  const cdSize = central.reduce((s, p) => s + p.length, 0);
+  const e = new DataView(new ArrayBuffer(22));
+  e.setUint32(0, 0x06054b50, true); e.setUint16(8, files.length, true); e.setUint16(10, files.length, true); e.setUint32(12, cdSize, true); e.setUint32(16, offset, true);
+  return new Blob([...parts, ...central, new Uint8Array(e.buffer)] as BlobPart[], { type: 'application/zip' });
+}
+
 /* ---------------- panel ---------------- */
 type Tab = 'Go Live' | 'Brand' | 'Content' | 'Media' | 'Code' | 'Export' | 'Hardware';
 
@@ -434,6 +457,43 @@ import config from './meridian.config.json';
                   ))}
                 </ol>
               </div>
+              <div className="rounded-2xl border border-white/10 p-4 relative overflow-hidden">
+                <div className="absolute -right-10 -top-10 w-40 h-40 rounded-full blur-3xl opacity-40" style={{ background: `conic-gradient(#f24e1e, #ff7262, #a259ff, #1abcfe, #0acf83, #f24e1e)` }} />
+                <div className="relative">
+                  <p className="text-[10px] uppercase tracking-widest text-white/50">Design in Figma</p>
+                  <p className="text-[14px] font-semibold mt-0.5">Edit it yourself: an editable Figma file built from this demo</p>
+                  <p className="text-[11px] text-white/60 mt-1">A Figma plugin builds the whole file inside your Figma, using your current colours, logo, airline name and content.</p>
+                  <div className="grid grid-cols-2 gap-1.5 mt-3 text-[10.5px] text-white/80">
+                    {[['🧩', 'Components: Glass Key set (shape × cabin), status bar, logo, call pill, popups'], ['🎨', 'Colour variables with Economy / Premium / Business modes'], ['🗂', 'Same named layer folders on every screen'], ['📱', '18 screens: 6 states for each of the 3 classes'], ['🔤', 'Meridian text styles'], ['📤', 'Each screen set up to export PNG @2x and SVG']].map(([i, t]) => (
+                      <div key={t} className="flex gap-1.5 rounded-lg bg-black/30 p-2"><span>{i}</span><span>{t}</span></div>
+                    ))}
+                  </div>
+                  <div className="mt-3 rounded-lg bg-black/40 p-2.5 font-mono text-[10px] text-white/70 leading-relaxed">
+                    Every screen&apos;s layers (top → bottom):<br />
+                    🔩 Hardware<br />💬 Overlays<br />🏷 Airline Logo<br />🔘 Glass Keys <span className="text-white/40">(Menu · Light · Orb · Scrub · Volume blade)</span><br />💧 Volume Liquid<br />📺 Display <span className="text-white/40">(Status bar · Now Playing / Browse)</span><br />🎨 Background
+                  </div>
+                  <div className="flex gap-1.5 mt-3 items-center">
+                    <Btn primary id="dev-figma-download" onClick={async () => {
+                      const [code, manifest] = await Promise.all([fetch('/handset/kit/figma/code.js').then((r) => r.text()), fetch('/handset/kit/figma/manifest.json').then((r) => r.text())]);
+                      const cfg = { origin: window.location.origin, theme, library: lib };
+                      const readme = `MERIDIAN HANDSET: FIGMA FILE BUILDER\n\nYou need the Figma desktop app (free) to run a plugin from a file.\n\n1. Unzip this folder.\n2. In Figma desktop, create a new Design file.\n3. Menu > Plugins > Development > Import plugin from manifest... and choose manifest.json in this folder.\n4. Menu > Plugins > Development > Meridian Handset Builder.\n5. Wait about 10-20 seconds. Pages: Cover, Components, 1 Economy, 2 Premium Economy, 3 Business.\n\nEdit colours under Local variables > Meridian Tokens. Edit type under Local styles > Meridian/...\nThe colours, logo, airline name and content in Developer mode at download time are built into code.js.\nTo rebuild with new settings, download again from Developer mode > Go Live.\n`;
+                      const blob = zip([
+                        { name: 'meridian-figma-plugin/manifest.json', text: manifest },
+                        { name: 'meridian-figma-plugin/code.js', text: `var MERIDIAN_CONFIG = ${JSON.stringify(cfg)};\n${code}` },
+                        { name: 'meridian-figma-plugin/README.txt', text: readme },
+                      ]);
+                      const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'meridian-figma-plugin.zip'; a.click();
+                    }}>Download Figma file builder (.zip)</Btn>
+                  </div>
+                  <ol className="mt-3 text-[10.5px] text-white/60 space-y-0.5 list-decimal pl-4">
+                    <li>Unzip, then open the <b>Figma desktop app</b> and a new Design file</li>
+                    <li>Plugins › Development › <b>Import plugin from manifest…</b> and pick <span className="font-mono">manifest.json</span></li>
+                    <li>Plugins › Development › <b>Meridian Handset Builder</b>. The file builds in about 15 seconds</li>
+                  </ol>
+                  <p className="text-[9.5px] text-white/35 mt-2">Figma&apos;s native .fig format is closed, so the file is built by a plugin inside your Figma. The result is a normal, fully editable Figma file. Animations are shown as static states.</p>
+                </div>
+              </div>
+
               <p className="text-[9.5px] text-white/35 leading-relaxed">
                 Example system names are illustrative. Actual endpoints, message formats and PA-interrupt behaviour come from the IFE vendor&apos;s and airframer&apos;s interface documents (ICDs) for each aircraft; certification is still required.
               </p>
