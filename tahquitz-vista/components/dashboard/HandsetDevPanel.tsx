@@ -222,7 +222,7 @@ export default function DevPanel({ theme, setTheme, lib, setLib, mood, onReset, 
   lib: Library; setLib: React.Dispatch<React.SetStateAction<Library>>;
   mood: Mood; onReset: () => void; onClose: () => void;
 }) {
-  const [tab, setTab] = useState<Tab>('Go Live');
+  const [tab, setTab] = useState<Tab>('Brand');
   const [ints, setInts] = useState<Record<IntKey, string>>(() => {
     const empty = { media: '', player: '', lights: '', call: '', cabin: '', telemetry: '', seatId: '' };
     if (typeof window === 'undefined') return empty;
@@ -347,7 +347,7 @@ import config from './meridian.config.json';
         </div>
       </div>
       <div className="flex gap-1 px-5 border-b border-white/10">
-        {(['Go Live', 'Brand', 'Content', 'Media', 'Code', 'Export', 'Hardware'] as Tab[]).map((t) => (
+        {(['Brand', 'Content', 'Media', 'Code', 'Export', 'Hardware', 'Go Live'] as Tab[]).map((t) => (
           <button key={t} id={`dev-tab-${t.toLowerCase().replace(' ', '-')}`} onClick={() => setTab(t)}
             className={`relative px-2 py-2 text-[11px] whitespace-nowrap ${tab === t ? 'text-white' : 'text-white/45 hover:text-white/80'}`}>
             {t}
